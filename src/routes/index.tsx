@@ -253,7 +253,7 @@ function CardProduto({
 }: {
   produto: Produto;
   onAdd: () => void;
-  priority?: boolean;
+  priority?: boolean | undefined;
 }) {
   return (
     <article className="surface-craft overflow-hidden rounded-2xl">
@@ -331,8 +331,8 @@ function MonteSeuBowl({
 }: {
   onAdd: (i: { nome: string; preco: number; detalhes?: string[] }) => void;
 }) {
-  const [tamanho, setTamanho] = useState(tamanhos[1].id);
-  const [base, setBase] = useState(bases[0].id);
+  const [tamanho, setTamanho] = useState(tamanhos[1]!.id);
+  const [base, setBase] = useState(bases[0]!.id);
   const [selDoces, setSelDoces] = useState<string[]>([]);
   const [selNorte, setSelNorte] = useState<string[]>([]);
 

@@ -15,7 +15,7 @@ export function ProductMedia({
   id: string;
   fallback: string;
   alt: string;
-  priority?: boolean;
+  priority?: boolean | undefined;
 }) {
   const [media, setMedia] = useState<SavedMedia | null>(null);
   const [loading, setLoading] = useState(false);
