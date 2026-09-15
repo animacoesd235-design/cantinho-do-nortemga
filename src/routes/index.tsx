@@ -419,7 +419,7 @@ function MonteSeuBowl({
         </div>
       </Passo>
 
-      <div className="surface-craft sticky bottom-24 mt-5 flex items-center justify-between gap-3 rounded-2xl p-4">
+      <div className="surface-craft sticky bottom-32 mt-5 flex items-center justify-between gap-3 rounded-2xl p-4">
         <div className="min-w-0">
           <p className="text-xs text-muted-foreground">Seu bowl</p>
           <p className="truncate text-lg font-bold text-acai">{brl(preco)}</p>
