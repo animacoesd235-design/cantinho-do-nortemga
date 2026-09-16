@@ -16,101 +16,141 @@ export type Produto = {
   destaque?: string;
 };
 
-export const pratos: Produto[] = [
+export const combos: Produto[] = [
   {
-    id: "acai-camarao",
-    nome: "Açaí com Camarão Tradicional",
-    descricao:
-      "O autêntico açaí grosso da Amazônia servido com camarão seco selecionado, azeite e farinha do norte.",
-    preco: 34.9,
-    imagem: acaiCamarao,
-    destaque: "Mais pedido",
-  },
-  {
-    id: "bowl-puro",
-    nome: "Bowl Amazônico Puro",
-    descricao:
-      "Açaí 100% puro da Amazônia, sem xarope de guaraná artificial, batido na hora, cremoso e natural.",
-    preco: 22.9,
-    imagem: bowlPuro,
-    destaque: "Sem misturas",
-  },
-  {
-    id: "acai-cupuacu",
-    nome: "Açaí com Cupuaçu",
-    descricao:
-      "A combinação perfeita do açaí puro com o creme cremoso de cupuaçu legítimo da Amazônia.",
-    preco: 26.9,
-    imagem: acaiCupuacu,
-  },
-  {
-    id: "combo-para",
-    nome: "Combo Pará-Maringá",
-    descricao:
-      "Açaí grande (500ml) + porção extra de camarão seco + mix de farinhas artesanais do norte.",
-    preco: 49.9,
+    id: "kit-completo",
+    nome: "Kit Completo",
+    descricao: "1 Litro de Açaí + 500ml de Farinha + 500ml de Tapioca.",
+    preco: 48,
     imagem: comboPara,
-    destaque: "Combo",
+    destaque: "Melhor custo",
+  },
+  {
+    id: "combo-1l-farinha",
+    nome: "Combo 1L Açaí + 1L Farinha",
+    descricao: "1 Litro de Açaí + 1 Litro de Farinha de Mandioca.",
+    preco: 53,
+    imagem: farinhaAgua,
+  },
+  {
+    id: "combo-2l-farinha",
+    nome: "Combo 2L Açaí + 1L Farinha",
+    descricao: "2 Litros de Açaí + 1 Litro de Farinha de Mandioca.",
+    preco: 85,
+    imagem: bowlPuro,
+  },
+  {
+    id: "combo-3l-farinha",
+    nome: "Combo 3L Açaí + 2L Farinha",
+    descricao: "3 Litros de Açaí + 2 Litros de Farinha de Mandioca.",
+    preco: 131,
+    imagem: comboPara,
+    destaque: "Família",
+  },
+  {
+    id: "combo-farinha-camarao",
+    nome: "Combo Açaí + Farinha + Camarão",
+    descricao: "1 Litro de Açaí + 1 Litro de Farinha + 250g de Camarão.",
+    preco: 70,
+    imagem: camaraoSeco,
+  },
+  {
+    id: "combo-tapioca-camarao",
+    nome: "Combo Açaí + Tapioca + Camarão",
+    descricao: "1 Litro de Açaí + 1 Litro de Tapioca + 250g de Camarão.",
+    preco: 68,
+    imagem: acaiCamarao,
+  },
+  {
+    id: "combo-farinha-conserva",
+    nome: "Combo Açaí + Farinha + Conserva Desfiada",
+    descricao:
+      "1 Litro de Açaí + 1 Litro de Farinha + 1 Conserva Desfiada 320g.",
+    preco: 68,
+    imagem: farinhaTapioca,
+  },
+  {
+    id: "combo-farinha-charque",
+    nome: "Combo Açaí + Farinha + Charque",
+    descricao:
+      "1 Litro de Açaí + 1 Litro de Farinha + 200g de Charque Regional do Amapá.",
+    preco: 68,
+    imagem: comboPara,
   },
 ];
 
-export const emporio: Produto[] = [
+export const avulsos: Produto[] = [
   {
-    id: "farinha-agua",
-    nome: "Farinha d'Água do Pará (1kg)",
+    id: "acai-litro",
+    nome: "Açaí Batido ou Polpa (1 Litro)",
+    descricao: "Puro da Amazônia, sem misturas, pronto para consumir ou montar em casa.",
+    preco: 37,
+    imagem: bowlPuro,
+    destaque: "Mais pedido",
+  },
+  {
+    id: "charque",
+    nome: "Charque Regional do Amapá (1 kg)",
+    descricao: "Charque selecionado do Amapá, sabor autêntico do norte.",
+    preco: 90,
+    imagem: comboPara,
+  },
+  {
+    id: "camarao-salgado",
+    nome: "Camarão Salgado Selecionado (1 kg)",
+    descricao: "Camarão graúdo, salgado no ponto e selecionado peça a peça.",
+    preco: 100,
+    imagem: camaraoSeco,
+  },
+  {
+    id: "conserva-carne",
+    nome: "Conserva de Carne (Unidade)",
+    descricao: "Carne em conserva artesanal, tradição da despensa amazônica.",
+    preco: 20,
+    imagem: tucupi,
+  },
+  {
+    id: "polpa-cupuacu",
+    nome: "Polpa de Cupuaçu (Unidade)",
+    descricao: "Polpa cremosa e legítima de cupuaçu, direto da Amazônia.",
+    preco: 45,
+    imagem: acaiCupuacu,
+  },
+  {
+    id: "farinha-mandioca",
+    nome: "Farinha de Mandioca (O Litro)",
     descricao: "Crocante, artesanal e torrada no ponto certo, direto do Pará.",
-    preco: 24.9,
+    preco: 20,
     imagem: farinhaAgua,
   },
   {
     id: "farinha-tapioca",
-    nome: "Farinha de Tapioca / Ojon (500g)",
-    descricao: "Leve e delicada, perfeita para acompanhar o açaí ou o café da tarde.",
-    preco: 19.9,
+    nome: "Farinha de Tapioca (O Litro)",
+    descricao: "Leve e delicada, perfeita para acompanhar o açaí.",
+    preco: 20,
     imagem: farinhaTapioca,
   },
   {
-    id: "camarao-seco",
-    nome: "Camarão Seco Salgado Selecionado (250g)",
-    descricao: "Camarão graúdo, salgado no ponto e selecionado peça a peça.",
-    preco: 39.9,
-    imagem: camaraoSeco,
-  },
-  {
     id: "tucupi",
-    nome: "Tucupi Autêntico da Amazônia (1L)",
+    nome: "Tucupi (O Litro)",
     descricao: "Caldo dourado de mandioca fermentada, base do tacacá e do pato no tucupi.",
-    preco: 28.9,
+    preco: 30,
     imagem: tucupi,
   },
-];
-
-export const tamanhos = [
-  { id: "p", nome: "P — 300ml", preco: 16.9 },
-  { id: "m", nome: "M — 500ml", preco: 22.9 },
-  { id: "g", nome: "G — 700ml", preco: 28.9 },
-];
-
-export const bases = [
-  { id: "puro", nome: "Açaí Puro da Amazônia", preco: 0 },
-  { id: "cupuacu", nome: "Meio Açaí / Meio Cupuaçu", preco: 3 },
-  { id: "castanha", nome: "Açaí com Creme de Castanha", preco: 4 },
-];
-
-export const doces = [
-  { id: "leite-cond", nome: "Leite Condensado", preco: 0 },
-  { id: "leite-po", nome: "Leite em Pó", preco: 0 },
-  { id: "granola", nome: "Granola Crocante", preco: 0 },
-  { id: "pacoca", nome: "Paçoca", preco: 0 },
-  { id: "banana", nome: "Banana em rodelas", preco: 0 },
-  { id: "morango", nome: "Morango", preco: 0 },
-];
-
-export const norte = [
-  { id: "camarao", nome: "Camarão Seco", preco: 8 },
-  { id: "farinha-dagua", nome: "Farinha d'Água", preco: 3 },
-  { id: "farinha-tap", nome: "Farinha de Tapioca", preco: 3 },
-  { id: "castanha-para", nome: "Castanha do Pará triturada", preco: 5 },
+  {
+    id: "maniva",
+    nome: "Maniva Pré-Cozida (1 kg)",
+    descricao: "Folha de mandioca pronta para a sua maniçoba.",
+    preco: 60,
+    imagem: farinhaAgua,
+  },
+  {
+    id: "farofa",
+    nome: "Farofa (O Litro)",
+    descricao: "Farofa artesanal dourada, companhia ideal de qualquer prato.",
+    preco: 20,
+    imagem: farinhaTapioca,
+  },
 ];
 
 export const WHATSAPP = "5544999999999";
