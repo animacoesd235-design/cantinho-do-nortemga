@@ -1,9 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
+  Bike,
   Clock,
-  Leaf,
+  ExternalLink,
+  Gift,
   MapPin,
   Minus,
   Plus,
@@ -14,7 +16,12 @@ import {
 } from "lucide-react";
 
 import { ProductMedia } from "@/components/ProductMedia";
+import { ModalUpsell } from "@/components/ModalUpsell";
+import { ModalCheckout } from "@/components/ModalCheckout";
+import { ModalRastreio } from "@/components/ModalRastreio";
+import { SocialProofToast } from "@/components/SocialProofToast";
 import logo from "@/assets/logo-cantinho.png";
+import heroBg from "@/assets/hero-bg.jpg";
 import {
   WHATSAPP,
   avulsos,
@@ -22,24 +29,32 @@ import {
   combos,
   type Produto,
 } from "@/lib/menu-data";
+import {
+  getLastOrderId,
+  getOrderById,
+  onOrdersUpdate,
+  type ExtraItem,
+  type Order,
+  type OrderItem,
+} from "@/lib/orders";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Cantinho do Norte — Kits e Garrafas de Açaí em Maringá" },
+      { title: "Cantinho do Norte — Kits e Garrafas de Açaí em Maringá (100% Delivery)" },
       {
         name: "description",
         content:
-          "Kits de açaí, farinhas artesanais, camarão, tucupi e empório amazônico em Maringá/PR. Entrega e retirada — peça pelo WhatsApp.",
+          "Kits de açaí, farinhas artesanais, camarão, tucupi e empório amazônico em Maringá/PR. Atendimento 100% Delivery.",
       },
       {
         property: "og:title",
-        content: "Cantinho do Norte — Açaí e Empório",
+        content: "Cantinho do Norte — Açaí e Empório (100% Delivery)",
       },
       {
         property: "og:description",
         content:
-          "Garrafas de açaí puro e kits para montar em casa, direto da Amazônia. Peça pelo WhatsApp.",
+          "Garrafas de açaí puro e kits lacrados para montar em casa. 100% Delivery em Maringá/PR.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -48,35 +63,53 @@ export const Route = createFileRoute("/")({
   component: Cardapio,
 });
 
-type CartItem = {
-  uid: string;
-  nome: string;
-  preco: number;
-  qtd: number;
-  detalhes?: string[];
-};
-
 const abas = [
   { id: "combos", nome: "Combos Especiais" },
-  { id: "avulsos", nome: "Pronta Entrega (Avulsos)" },
+  { id: "avulsos", nome: "Produtos à Pronta Entrega" },
 ] as const;
 
 type AbaId = (typeof abas)[number]["id"];
 
 function Cardapio() {
   const [aba, setAba] = useState<AbaId>("combos");
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<OrderItem[]>([]);
   const [cartAberto, setCartAberto] = useState(false);
 
-  const add = (item: Omit<CartItem, "uid" | "qtd">) => {
+  // Estados dos novos modais
+  const [itemParaUpsell, setItemParaUpsell] = useState<{
+    produto: Produto;
+    isCombo?: boolean;
+  } | null>(null);
+  const [checkoutAberto, setCheckoutAberto] = useState(false);
+  const [rastreioOrderId, setRastreioOrderId] = useState<string | null>(null);
+  const [pedidoAtivo, setPedidoAtivo] = useState<Order | null>(null);
+
+  // Sincroniza e monitora pedido ativo do cliente
+  useEffect(() => {
+    const checarPedidoAtivo = () => {
+      const lastId = getLastOrderId();
+      if (lastId) {
+        const p = getOrderById(lastId);
+        setPedidoAtivo(p);
+      } else {
+        setPedidoAtivo(null);
+      }
+    };
+
+    checarPedidoAtivo();
+    const cleanup = onOrdersUpdate(checarPedidoAtivo);
+    return cleanup;
+  }, []);
+
+  const add = (item: Omit<OrderItem, "uid" | "qtd">) => {
     setCart((prev) => {
       const chave = item.nome + (item.detalhes?.join("|") ?? "");
       const existente = prev.find(
-        (p) => p.nome + (p.detalhes?.join("|") ?? "") === chave,
+        (p) => p.nome + (p.detalhes?.join("|") ?? "") === chave
       );
       if (existente) {
         return prev.map((p) =>
-          p.uid === existente.uid ? { ...p, qtd: p.qtd + 1 } : p,
+          p.uid === existente.uid ? { ...p, qtd: p.qtd + 1 } : p
         );
       }
       return [...prev, { ...item, uid: crypto.randomUUID(), qtd: 1 }];
@@ -84,80 +117,121 @@ function Cardapio() {
     toast.success("Adicionado ao pedido", { description: item.nome });
   };
 
+  const iniciarAdicao = (produto: Produto, isCombo?: boolean) => {
+    setItemParaUpsell({ produto, isCombo });
+  };
+
+  const handleConfirmUpsell = (extras: ExtraItem[]) => {
+    if (!itemParaUpsell) return;
+    const { produto, isCombo } = itemParaUpsell;
+    const valorExtras = extras.reduce((acc, curr) => acc + curr.preco, 0);
+    const precoFinal = produto.preco + valorExtras;
+    const detalhes = extras.map((e) => `+ ${e.nome}`);
+
+    add({
+      nome: produto.nome,
+      preco: precoFinal,
+      detalhes: detalhes.length ? detalhes : undefined,
+      extras: extras.map((e) => ({ nome: e.nome, preco: e.preco })),
+      isCombo,
+    });
+    setItemParaUpsell(null);
+  };
+
+  const handleSkipUpsell = () => {
+    if (!itemParaUpsell) return;
+    const { produto, isCombo } = itemParaUpsell;
+    add({
+      nome: produto.nome,
+      preco: produto.preco,
+      isCombo,
+    });
+    setItemParaUpsell(null);
+  };
+
   const mudarQtd = (uid: string, delta: number) =>
     setCart((prev) =>
       prev
         .map((p) => (p.uid === uid ? { ...p, qtd: p.qtd + delta } : p))
-        .filter((p) => p.qtd > 0),
+        .filter((p) => p.qtd > 0)
     );
 
   const total = useMemo(
     () => cart.reduce((s, i) => s + i.preco * i.qtd, 0),
-    [cart],
+    [cart]
   );
   const qtdTotal = cart.reduce((s, i) => s + i.qtd, 0);
 
-  const enviarWhatsApp = () => {
-    if (!cart.length) return;
-    const linhas = cart.map((i) => {
-      const extras = i.detalhes?.length
-        ? `\n   ${i.detalhes.join("\n   ")}`
-        : "";
-      return `• ${i.qtd}x ${i.nome} — ${brl(i.preco * i.qtd)}${extras}`;
-    });
-    const msg = [
-      "*Pedido — Cantinho do Norte*",
-      "",
-      ...linhas,
-      "",
-      `*Total: ${brl(total)}*`,
-      "",
-      "Nome:",
-      "Entrega ou retirada:",
-      "Endereço:",
-      "Forma de pagamento:",
-    ].join("\n");
-    window.open(
-      `https://wa.me/${WHATSAPP}?text=${encodeURIComponent(msg)}`,
-      "_blank",
-    );
+  const handleOrderCompleted = (order: Order) => {
+    setCart([]);
+    setCartAberto(false);
+    setCheckoutAberto(false);
+    // Abre imediatamente o Rastreamento em Tempo Real do pedido!
+    setRastreioOrderId(order.id);
   };
 
   return (
     <div className="min-h-screen bg-gradient-sand pb-36">
-      <Header />
+      {/* Banner de Urgência e Escassez (Topo da Página) */}
+      <BannerUrgencia />
 
-      <nav className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-3xl justify-center gap-2 px-3 py-3">
-          {abas.map((a) => (
-            <button
-              key={a.id}
-              onClick={() => setAba(a.id)}
-              className={`tap whitespace-nowrap rounded-full px-5 py-2 text-sm font-semibold transition-colors ${
-                aba === a.id
-                  ? "bg-gradient-forest text-forest-foreground shadow-[var(--shadow-soft)]"
-                  : "bg-secondary text-secondary-foreground hover:bg-accent"
-              }`}
-            >
-              {a.nome}
-            </button>
-          ))}
+      {/* Cabeçalho Clean e Sofisticado */}
+      <HeroSection />
+
+      {/* Botão de Acompanhamento Flutuante caso haja pedido em andamento */}
+      {pedidoAtivo && (
+        <div className="sticky top-16 z-20 flex justify-center px-4 py-2 pointer-events-none">
+          <button
+            onClick={() => setRastreioOrderId(pedidoAtivo.id)}
+            className="tap pointer-events-auto inline-flex items-center gap-2 rounded-full bg-forest/95 hover:bg-forest text-white border border-white/20 shadow-lg px-4 py-1.5 text-xs font-bold backdrop-blur-md transition-all animate-in fade-in slide-in-from-top-2"
+          >
+            <Bike className="h-3.5 w-3.5 text-amber-300 animate-pulse" />
+            <span>
+              Acompanhar Pedido {pedidoAtivo.id}{" "}
+              {pedidoAtivo.status === "pronto"
+                ? "• Motoboy a caminho! 🛵"
+                : "• Em preparo na cozinha ⏳"}
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Abas de Navegação Fluidas em Pílula Centralizada */}
+      <nav className="sticky top-0 z-30 border-b border-border/70 bg-background/90 py-3.5 backdrop-blur-xl shadow-xs">
+        <div className="mx-auto flex max-w-xl justify-center px-4">
+          <div className="inline-flex items-center rounded-full bg-secondary/80 p-1.5 border border-border shadow-inner">
+            {abas.map((a) => (
+              <button
+                key={a.id}
+                onClick={() => setAba(a.id)}
+                className={`tap relative whitespace-nowrap rounded-full px-5 sm:px-7 py-2 text-xs sm:text-sm font-bold tracking-wide transition-all duration-200 ${
+                  aba === a.id
+                    ? "bg-forest text-forest-foreground shadow-md"
+                    : "text-muted-foreground hover:text-foreground hover:bg-black/5"
+                }`}
+              >
+                {a.nome}
+              </button>
+            ))}
+          </div>
         </div>
       </nav>
 
-      <main className="mx-auto max-w-3xl px-3 pt-6">
+      {/* Grid de Produtos */}
+      <main className="mx-auto max-w-4xl px-4 pt-8">
         {aba === "combos" && (
           <Secao
             titulo="Combos Especiais"
-            subtitulo="Kits completos para montar em casa, com economia."
+            subtitulo="Kits completos em garrafas e potes lacrados. Receba os ingredientes frescos e monte o seu açaí tradicional do seu jeito, no capricho!"
           >
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-5 sm:grid-cols-2">
               {combos.map((p, i) => (
                 <CardProduto
                   key={p.id}
                   produto={p}
                   priority={i === 0}
-                  onAdd={() => add({ nome: p.nome, preco: p.preco })}
+                  isCombo={true}
+                  onAdd={() => iniciarAdicao(p, true)}
                 />
               ))}
             </div>
@@ -166,15 +240,15 @@ function Cardapio() {
 
         {aba === "avulsos" && (
           <Secao
-            titulo="Produtos a Pronta Entrega (Avulsos)"
-            subtitulo="Garrafas, polpas e iguarias do norte, prontos para levar."
+            titulo="Produtos à Pronta Entrega"
+            subtitulo="Garrafas de açaí batido na hora, polpas legítimas e itens de empório artesanal."
           >
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-5 sm:grid-cols-2">
               {avulsos.map((p) => (
                 <CardProduto
                   key={p.id}
                   produto={p}
-                  onAdd={() => add({ nome: p.nome, preco: p.preco })}
+                  onAdd={() => iniciarAdicao(p, false)}
                 />
               ))}
             </div>
@@ -182,6 +256,10 @@ function Cardapio() {
         )}
       </main>
 
+      {/* Rodapé com Horários, Status 100% Delivery e Link do KDS */}
+      <Footer onAbrirRastreio={() => pedidoAtivo && setRastreioOrderId(pedidoAtivo.id)} temPedidoAtivo={!!pedidoAtivo} />
+
+      {/* Carrinho Flutuante com Glassmorphism */}
       <CarrinhoFlutuante
         cart={cart}
         total={total}
@@ -190,59 +268,120 @@ function Cardapio() {
         setAberto={setCartAberto}
         mudarQtd={mudarQtd}
         limpar={() => setCart([])}
-        enviar={enviarWhatsApp}
+        onAbrirCheckout={() => setCheckoutAberto(true)}
       />
+
+      {/* Modal de Upselling Inteligente */}
+      {itemParaUpsell && (
+        <ModalUpsell
+          produto={itemParaUpsell.produto}
+          isCombo={itemParaUpsell.isCombo}
+          onConfirm={handleConfirmUpsell}
+          onSkip={handleSkipUpsell}
+          onClose={() => setItemParaUpsell(null)}
+        />
+      )}
+
+      {/* Modal de Checkout Exclusivo 100% Delivery & Pix */}
+      {checkoutAberto && (
+        <ModalCheckout
+          cart={cart}
+          total={total}
+          onClose={() => setCheckoutAberto(false)}
+          onOrderCompleted={handleOrderCompleted}
+        />
+      )}
+
+      {/* Modal de Rastreamento em Tempo Real */}
+      {rastreioOrderId && (
+        <ModalRastreio
+          orderId={rastreioOrderId}
+          onClose={() => setRastreioOrderId(null)}
+        />
+      )}
+
+      {/* Prova Social em Tempo Real (Toasts de Vendas) */}
+      <SocialProofToast />
     </div>
   );
 }
 
-function Header() {
+function BannerUrgencia() {
   return (
-    <header className="relative overflow-hidden bg-gradient-forest px-4 pb-10 pt-10 text-forest-foreground">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-[0.08]"
-        style={{
-          backgroundImage:
-            "radial-gradient(circle at 20% 20%, oklch(0.98 0.012 88) 0, transparent 40%), radial-gradient(circle at 85% 80%, oklch(0.79 0.15 82) 0, transparent 45%)",
-        }}
-      />
-      <div className="relative mx-auto max-w-3xl text-center">
-        <div className="flex justify-center">
+    <aside
+      role="region"
+      aria-label="Aviso de lote diário"
+      className="relative z-40 overflow-hidden bg-[#0a110d] text-amber-200 border-b border-amber-500/25 px-3.5 py-2.5 shadow-sm"
+    >
+      {/* Luz ambiente de destaque sutil */}
+      <div className="absolute inset-0 bg-gradient-to-r from-forest/30 via-gold/15 to-forest/30 pointer-events-none" />
+
+      <div className="relative mx-auto flex max-w-5xl items-center justify-center gap-2.5 text-center text-xs sm:text-sm">
+        <span className="relative flex h-2 w-2 shrink-0">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+        </span>
+
+        <p className="font-medium text-white/95 leading-tight">
+          <strong className="font-bold text-amber-300">
+            🌿 Lote artesanal diário:
+          </strong>{" "}
+          Restam poucas garrafas de açaí engarrafado para entrega hoje em Maringá!
+        </p>
+
+        <span className="hidden md:inline-flex items-center rounded-full bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 text-[10px] uppercase font-black tracking-wider text-amber-300 shrink-0">
+          Últimas Garrafas
+        </span>
+      </div>
+    </aside>
+  );
+}
+
+function HeroSection() {
+  return (
+    <header className="relative w-full overflow-hidden bg-[#090e0b] text-white">
+      {/* Imagem de Fundo de Alta Qualidade */}
+      <div className="absolute inset-0 z-0">
+        <img
+          src={heroBg}
+          alt="Açaí artesanal e ambiente amazônico sofisticado"
+          className="h-full w-full object-cover object-center scale-105 transition-transform duration-1000"
+          loading="eager"
+        />
+        {/* Filtro Escuro e Overlay Elegante em Camadas */}
+        <div className="hero-overlay absolute inset-0 backdrop-blur-[1px]" />
+      </div>
+
+      {/* Conteúdo Centralizado do Banner - Clean, Compacto e Focado na Marca */}
+      <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center px-4 py-12 sm:py-16 text-center">
+        {/* Logo Oficial Redonda em Tamanho de Destaque */}
+        <div className="relative group">
+          <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-gold/50 via-white/20 to-gold/50 opacity-65 blur-lg group-hover:opacity-90 transition duration-500" />
           <img
             src={logo}
-            alt="Logo Cantinho do Norte — Açaí e Empório"
-            width={96}
-            height={96}
+            alt="Cantinho do Norte — A essência da Amazônia na sua mesa"
+            width={128}
+            height={128}
             loading="eager"
             decoding="async"
-            className="logo-ring h-24 w-24 rounded-full object-cover"
+            className="relative h-28 w-28 sm:h-36 sm:w-36 rounded-full aspect-square object-contain logo-ring bg-black/40 shadow-xl transition-transform duration-300 group-hover:scale-105"
           />
         </div>
-        <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-gold px-3 py-1 text-xs font-bold text-gold-foreground">
-          <Leaf className="h-3.5 w-3.5" />
-          Maringá / PR
+
+        {/* Tag Sutil */}
+        <div className="mt-5 inline-flex items-center gap-2 rounded-full hero-badge px-4 py-1.5 text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] text-amber-200/95 shadow-sm">
+          <span>🌿 SABORES QUE VÊM DA NOSSA TERRA</span>
         </div>
-        <h1 className="mt-3 text-4xl leading-tight font-bold tracking-tight">
+
+        {/* Título Principal */}
+        <h1 className="mt-3.5 text-3xl sm:text-5xl font-extrabold tracking-tight text-white font-display drop-shadow-md">
           Cantinho do Norte
         </h1>
-        <p className="mt-1 text-sm font-semibold uppercase tracking-[0.2em] opacity-90">
-          Açaí e Empório
+
+        {/* Subtítulo Direto com Reforço de 100% Delivery */}
+        <p className="mt-2.5 max-w-lg text-sm sm:text-base font-medium text-emerald-100/90 leading-relaxed drop-shadow-sm">
+          O autêntico açaí batido na garrafa e kits artesanais direto do Norte • 100% Delivery em Maringá
         </p>
-        <p className="mx-auto mt-4 inline-flex max-w-md items-start justify-center gap-2 rounded-2xl bg-acai/40 px-4 py-2.5 text-sm font-semibold backdrop-blur-sm">
-          <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
-          Garrafas de açaí puro e kits para montar em casa — Sem misturas!
-        </p>
-        <div className="mt-5 grid gap-1.5 text-xs opacity-90">
-          <span className="flex items-center justify-center gap-2">
-            <Clock className="h-3.5 w-3.5 shrink-0" /> Seg a Sáb · 11h às 22h ·
-            Dom 14h às 21h
-          </span>
-          <span className="flex items-center justify-center gap-2">
-            <MapPin className="h-3.5 w-3.5 shrink-0" /> Entrega em Maringá e
-            retirada na loja
-          </span>
-        </div>
       </div>
     </header>
   );
@@ -258,9 +397,11 @@ function Secao({
   children: React.ReactNode;
 }) {
   return (
-    <section className="fade-up">
-      <h2 className="text-2xl font-bold text-forest">{titulo}</h2>
-      <p className="mb-5 mt-1 text-sm text-muted-foreground">{subtitulo}</p>
+    <section className="fade-up mb-10">
+      <div className="mb-6">
+        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-forest font-display">{titulo}</h2>
+        <p className="mt-1.5 text-sm sm:text-base text-muted-foreground">{subtitulo}</p>
+      </div>
       {children}
     </section>
   );
@@ -270,44 +411,199 @@ function CardProduto({
   produto,
   onAdd,
   priority,
+  isCombo,
 }: {
   produto: Produto;
   onAdd: () => void;
   priority?: boolean | undefined;
+  isCombo?: boolean;
 }) {
+  const economia =
+    produto.economia ??
+    (produto.precoOriginal ? produto.precoOriginal - produto.preco : 0);
+
   return (
-    <article className="card-hover surface-craft group overflow-hidden rounded-2xl">
-      <ProductMedia
-        id={produto.id}
-        fallback={produto.imagem}
-        alt={produto.nome}
-        priority={priority}
-      />
-      <div className="p-4">
-        {produto.destaque && (
-          <span className="mb-2 inline-block rounded-full bg-gold px-2.5 py-0.5 text-[11px] font-bold text-gold-foreground">
-            {produto.destaque}
-          </span>
-        )}
-        <h3 className="text-base font-bold leading-snug text-forest">
-          {produto.nome}
-        </h3>
-        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-          {produto.descricao}
-        </p>
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <span className="text-xl font-bold text-acai">
-            {brl(produto.preco)}
-          </span>
+    <article className="group relative flex flex-col justify-between overflow-hidden rounded-3xl bg-card border border-border/80 shadow-[var(--shadow-card)] hover:shadow-2xl hover:border-gold/50 transition-all duration-300">
+      <div>
+        <div className="relative">
+          <ProductMedia
+            id={produto.id}
+            fallback={produto.imagem}
+            alt={produto.nome}
+            priority={priority}
+          />
+          {produto.destaque && (
+            <div className="absolute left-3 top-3 z-10">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-gold/95 backdrop-blur-md px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-gold-foreground shadow-md">
+                <Sparkles className="h-3 w-3" />
+                {produto.destaque}
+              </span>
+            </div>
+          )}
+
+          {/* Badge de Economia nos Combos */}
+          {produto.precoOriginal && economia > 0 && (
+            <div className="absolute right-3 top-3 z-10">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/95 backdrop-blur-md px-2.5 py-1 text-[11px] font-black uppercase tracking-wider text-white shadow-md border border-emerald-400/40">
+                Economia de {brl(economia)}
+              </span>
+            </div>
+          )}
+
+          {isCombo && (
+            <div className="absolute left-2.5 bottom-2.5 z-10">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/75 backdrop-blur-md px-3 py-1 text-[11px] font-semibold text-white/95 border border-white/20 shadow-md">
+                📸 Sugestão de preparo (Monte em casa)
+              </span>
+            </div>
+          )}
+        </div>
+        <div className="p-4 sm:p-5">
+          <h3 className="text-lg font-bold leading-snug text-forest group-hover:text-acai transition-colors font-display">
+            {produto.nome}
+          </h3>
+          <p className="mt-1.5 text-xs sm:text-sm leading-relaxed text-muted-foreground line-clamp-3">
+            {produto.descricao}
+          </p>
+        </div>
+      </div>
+
+      <div className="p-4 sm:p-5 pt-0 mt-auto">
+        <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-3.5">
+          <div className="flex flex-col">
+            {produto.precoOriginal ? (
+              <>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <span className="text-muted-foreground line-through font-medium">
+                    De {brl(produto.precoOriginal)}
+                  </span>
+                  <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 px-1.5 py-0.5 rounded-md">
+                    Economia de {brl(economia)}
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-1 text-acai">
+                  <span className="text-xs font-bold text-acai/70">Por R$</span>
+                  <span className="text-2xl font-black tracking-tight font-display">
+                    {produto.preco.toFixed(2).replace(".", ",")}
+                  </span>
+                </div>
+              </>
+            ) : (
+              <>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
+                  Valor
+                </span>
+                <div className="flex items-baseline gap-1 text-acai">
+                  <span className="text-xs font-bold text-acai/70">R$</span>
+                  <span className="text-2xl font-black tracking-tight font-display">
+                    {produto.preco.toFixed(2).replace(".", ",")}
+                  </span>
+                </div>
+              </>
+            )}
+          </div>
           <button
             onClick={onAdd}
-            className="tap inline-flex items-center gap-1.5 rounded-full bg-gradient-acai px-4 py-2 text-sm font-semibold text-acai-foreground shadow-[var(--shadow-soft)]"
+            className="tap inline-flex items-center gap-1.5 rounded-full bg-gradient-acai px-5 py-2.5 text-xs sm:text-sm font-extrabold text-acai-foreground shadow-md hover:opacity-95 active:scale-95 transition-all"
           >
             <Plus className="h-4 w-4" /> Adicionar
           </button>
         </div>
       </div>
     </article>
+  );
+}
+
+function Footer({
+  onAbrirRastreio,
+  temPedidoAtivo,
+}: {
+  onAbrirRastreio: () => void;
+  temPedidoAtivo: boolean;
+}) {
+  return (
+    <footer className="mt-16 border-t border-border/70 bg-card/50 pt-12 pb-24 backdrop-blur-md">
+      <div className="mx-auto max-w-4xl px-4">
+        {/* Card de Informações de Atendimento */}
+        <div className="rounded-3xl border border-border/80 bg-background/80 p-6 sm:p-8 shadow-sm backdrop-blur-md">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+            {/* Marca e Status */}
+            <div className="flex flex-col items-center md:items-start text-center md:text-left gap-2">
+              <div className="flex items-center gap-3">
+                <img
+                  src={logo}
+                  alt="Cantinho do Norte — A essência da Amazônia na sua mesa"
+                  className="h-12 w-12 rounded-full aspect-square object-contain ring-2 ring-forest/30 shadow-sm bg-black/40 shrink-0"
+                />
+                <div>
+                  <h3 className="text-xl font-bold font-display text-forest leading-none">
+                    Cantinho do Norte
+                  </h3>
+                  <p className="text-[11px] font-semibold text-gold-foreground uppercase tracking-widest mt-0.5">
+                    A essência da Amazônia na sua mesa
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground max-w-sm mt-1">
+                O autêntico açaí batido na garrafa e kits artesanais direto do Norte.
+              </p>
+              {/* Status Aberto Agora com Ponto Verde Pulsante */}
+              <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                </span>
+                <span>Aberto agora • Pedidos via WhatsApp</span>
+              </div>
+            </div>
+
+            {/* Horários e Modalidade 100% Delivery */}
+            <div className="grid gap-3 text-xs sm:text-sm text-center md:text-right">
+              <div className="inline-flex items-center justify-center md:justify-end gap-2 text-foreground/90 font-medium">
+                <Clock className="h-4 w-4 text-forest shrink-0" />
+                <span>Seg a Sáb · 11h às 22h | Dom · 14h às 21h</span>
+              </div>
+              <div className="inline-flex items-center justify-center md:justify-end gap-2 text-foreground/90 font-bold text-forest">
+                <Bike className="h-4 w-4 text-forest shrink-0" />
+                <span>Atendimento 100% Delivery em Maringá/PR</span>
+              </div>
+              <div className="inline-flex items-center justify-center md:justify-end gap-1.5 text-xs text-muted-foreground">
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span>Maringá — Paraná • Entregas rápidas com lacre de segurança</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Links e Acessos Rápidos no Rodapé */}
+          <div className="mt-6 pt-5 border-t border-border/50 flex flex-wrap items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2">
+              {temPedidoAtivo && (
+                <button
+                  onClick={onAbrirRastreio}
+                  className="tap inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-200 font-bold px-3 py-1.5 border border-amber-500/30 transition-colors"
+                >
+                  <Bike className="h-3.5 w-3.5 text-amber-600" />
+                  <span>Rastrear Meu Pedido Ativo</span>
+                </button>
+              )}
+            </div>
+
+            <Link
+              to="/cozinha"
+              className="tap inline-flex items-center gap-1.5 rounded-full bg-forest/15 hover:bg-forest/25 text-forest font-bold px-3.5 py-1.5 transition-colors border border-forest/20"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span>Painel da Cozinha (KDS em Tempo Real)</span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Linha final sutil */}
+        <div className="mt-8 text-center text-xs text-muted-foreground">
+          © {new Date().getFullYear()} Cantinho do Norte — O autêntico sabor da Amazônia em Maringá (100% Delivery).
+        </div>
+      </div>
+    </footer>
   );
 }
 
@@ -319,75 +615,129 @@ function CarrinhoFlutuante({
   setAberto,
   mudarQtd,
   limpar,
-  enviar,
+  onAbrirCheckout,
 }: {
-  cart: CartItem[];
+  cart: OrderItem[];
   total: number;
   qtdTotal: number;
   aberto: boolean;
   setAberto: (v: boolean) => void;
   mudarQtd: (uid: string, d: number) => void;
   limpar: () => void;
-  enviar: () => void;
+  onAbrirCheckout: () => void;
 }) {
   if (!cart.length) return null;
+
+  const META_VANTAGEM = 75;
+  const falta = Math.max(0, META_VANTAGEM - total);
+  const progressoPct = Math.min(100, Math.round((total / META_VANTAGEM) * 100));
+  const alcancouMeta = total >= META_VANTAGEM;
 
   return (
     <>
       {aberto && (
         <div
-          className="fixed inset-0 z-40 bg-foreground/30 backdrop-blur-[2px]"
+          className="fixed inset-0 z-40 bg-black/45 backdrop-blur-[3px] transition-opacity"
           onClick={() => setAberto(false)}
         />
       )}
 
-      <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-4">
-        <div className="mx-auto max-w-3xl overflow-hidden rounded-3xl border border-border bg-card/85 shadow-[var(--shadow-float)] backdrop-blur-md">
+      <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-4 pointer-events-none">
+        <div className="mx-auto max-w-3xl overflow-hidden rounded-3xl glass-dock shadow-[var(--shadow-float)] pointer-events-auto transition-all">
           {aberto && (
-            <div className="max-h-[52vh] overflow-y-auto border-b border-border p-4">
+            <div className="max-h-[52vh] overflow-y-auto border-b border-border/80 p-4 sm:p-5">
               <div className="mb-3 flex items-center justify-between">
-                <h3 className="text-base font-bold text-forest">Seu pedido</h3>
+                <h3 className="text-base font-bold text-forest flex items-center gap-2">
+                  <ShoppingBag className="h-4 w-4 text-acai" />
+                  Seu Pedido ({qtdTotal} {qtdTotal === 1 ? "item" : "itens"})
+                </h3>
                 <button
                   onClick={() => setAberto(false)}
                   aria-label="Fechar carrinho"
-                  className="tap grid h-8 w-8 place-items-center rounded-full bg-secondary"
+                  className="tap grid h-8 w-8 place-items-center rounded-full bg-secondary hover:bg-accent transition-colors"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
+
+              {/* Barra de Progresso de Vantagem no Carrinho */}
+              <div className="mb-4 rounded-2xl bg-forest/10 border border-forest/20 p-3 shadow-inner">
+                <div className="flex items-center justify-between gap-2 text-xs">
+                  <div className="flex items-center gap-2 font-bold">
+                    <Gift className="h-4 w-4 text-amber-500 shrink-0 animate-bounce" />
+                    <span>
+                      {alcancouMeta ? (
+                        <span className="text-emerald-700 dark:text-emerald-400 font-extrabold">
+                          🎉 Parabéns! Você garantiu Entrega Grátis & Brinde Surpresa!
+                        </span>
+                      ) : (
+                        <span className="text-foreground">
+                          Faltam apenas{" "}
+                          <strong className="text-acai font-black">{brl(falta)}</strong>{" "}
+                          para você garantir{" "}
+                          <span className="text-emerald-700 dark:text-emerald-400 font-bold">
+                            Entrega Grátis / Brinde Surpresa!
+                          </span>
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-black text-forest">
+                    {progressoPct}%
+                  </span>
+                </div>
+
+                {/* Trilha e Preenchimento da Barra */}
+                <div className="mt-2 h-2.5 w-full overflow-hidden rounded-full bg-black/10">
+                  <div
+                    className={`h-full transition-all duration-500 rounded-full ${
+                      alcancouMeta
+                        ? "bg-gradient-to-r from-emerald-500 via-teal-400 to-emerald-500 animate-pulse"
+                        : "bg-gradient-to-r from-amber-500 to-forest"
+                    }`}
+                    style={{ width: `${progressoPct}%` }}
+                  />
+                </div>
+              </div>
+
               <ul className="grid gap-3">
                 {cart.map((i) => (
-                  <li key={i.uid} className="flex items-start gap-3">
+                  <li
+                    key={i.uid}
+                    className="flex items-center justify-between gap-3 rounded-2xl bg-background/50 p-2.5 border border-border/40"
+                  >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold">{i.nome}</p>
+                      <p className="truncate text-sm font-bold text-foreground">
+                        {i.nome}
+                      </p>
                       {i.detalhes?.map((d) => (
-                        <p key={d} className="text-xs text-muted-foreground">
+                        <p key={d} className="text-xs text-muted-foreground truncate">
                           {d}
                         </p>
                       ))}
-                      <p className="mt-0.5 text-sm font-bold text-acai">
+                      <p className="mt-0.5 text-xs sm:text-sm font-extrabold text-acai">
                         {brl(i.preco * i.qtd)}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-1 rounded-full bg-secondary px-1 py-1">
+                    <div className="flex shrink-0 items-center gap-1.5 rounded-full bg-secondary/80 px-1.5 py-1">
                       <button
                         onClick={() => mudarQtd(i.uid, -1)}
                         aria-label="Diminuir"
-                        className="tap grid h-7 w-7 place-items-center rounded-full bg-card"
+                        className="tap grid h-7 w-7 place-items-center rounded-full bg-card shadow-sm"
                       >
                         {i.qtd === 1 ? (
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3.5 w-3.5 text-destructive" />
                         ) : (
                           <Minus className="h-3.5 w-3.5" />
                         )}
                       </button>
-                      <span className="w-5 text-center text-sm font-bold">
+                      <span className="w-5 text-center text-xs font-bold">
                         {i.qtd}
                       </span>
                       <button
                         onClick={() => mudarQtd(i.uid, 1)}
                         aria-label="Aumentar"
-                        className="tap grid h-7 w-7 place-items-center rounded-full bg-card"
+                        className="tap grid h-7 w-7 place-items-center rounded-full bg-card shadow-sm"
                       >
                         <Plus className="h-3.5 w-3.5" />
                       </button>
@@ -395,40 +745,65 @@ function CarrinhoFlutuante({
                   </li>
                 ))}
               </ul>
-              <button
-                onClick={limpar}
-                className="tap mt-4 text-xs font-semibold text-muted-foreground underline"
-              >
-                Esvaziar carrinho
-              </button>
+              <div className="mt-4 flex items-center justify-between">
+                <button
+                  onClick={limpar}
+                  className="tap text-xs font-semibold text-muted-foreground hover:text-destructive transition-colors underline"
+                >
+                  Esvaziar carrinho
+                </button>
+                <span className="text-xs text-muted-foreground">
+                  Entrega 100% Delivery em Maringá
+                </span>
+              </div>
             </div>
           )}
 
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-3">
+          {/* Micro-barra de progresso quando recolhido */}
+          {!aberto && (
+            <div className="w-full bg-black/10 h-1 overflow-hidden">
+              <div
+                className={`h-full transition-all duration-500 ${
+                  alcancouMeta
+                    ? "bg-emerald-500"
+                    : "bg-gradient-to-r from-amber-500 to-forest"
+                }`}
+                style={{ width: `${progressoPct}%` }}
+              />
+            </div>
+          )}
+
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 p-3 sm:p-3.5">
             <button
               onClick={() => setAberto(!aberto)}
               className="tap flex min-w-0 items-center gap-3 text-left"
             >
-              <span className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-gradient-forest text-forest-foreground">
+              <span className="relative grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-forest text-forest-foreground shadow-md">
                 <ShoppingBag className="h-5 w-5" />
-                <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-gold px-1 text-[11px] font-bold text-gold-foreground">
+                <span className="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-gold px-1 text-[11px] font-extrabold text-gold-foreground shadow">
                   {qtdTotal}
                 </span>
               </span>
               <span className="min-w-0">
-                <span className="block text-xs text-muted-foreground">
-                  Subtotal
+                <span className="block text-[11px] font-semibold uppercase tracking-wider text-muted-foreground truncate">
+                  {alcancouMeta ? (
+                    <span className="text-emerald-700 dark:text-emerald-400 font-bold">
+                      ✨ Frete Grátis Liberado!
+                    </span>
+                  ) : (
+                    `Faltam ${brl(falta)} p/ Frete Grátis`
+                  )}
                 </span>
-                <span className="block truncate text-lg font-bold text-acai">
+                <span className="block truncate text-xl font-black text-acai">
                   {brl(total)}
                 </span>
               </span>
             </button>
             <button
-              onClick={enviar}
-              className="tap shrink-0 rounded-full bg-gradient-acai px-5 py-3 text-sm font-bold text-acai-foreground shadow-[var(--shadow-soft)]"
+              onClick={onAbrirCheckout}
+              className="tap shrink-0 rounded-full bg-gradient-acai px-6 py-3.5 text-xs sm:text-sm font-extrabold text-acai-foreground shadow-md hover:opacity-95 transition-all"
             >
-              Finalizar no WhatsApp
+              Finalizar Pedido (Delivery)
             </button>
           </div>
         </div>

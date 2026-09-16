@@ -68,7 +68,7 @@ export function ProductMedia({
   };
 
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-2xl bg-sand-deep">
+    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-3xl bg-sand-deep">
       {media?.tipo === "video" ? (
         <video
           src={media.data}
@@ -77,7 +77,7 @@ export function ProductMedia({
           muted
           playsInline
           preload="metadata"
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
         />
       ) : (
         <img
@@ -87,31 +87,33 @@ export function ProductMedia({
           height={768}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
-          className="h-full w-full object-cover"
+          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
         />
       )}
 
-      <div className="absolute right-2 top-2 flex gap-2">
+      <div className="absolute right-2.5 top-2.5 flex items-center gap-1.5 z-10">
         {media && (
           <button
             type="button"
             onClick={restaurar}
             aria-label="Restaurar mídia original"
-            className="tap grid h-9 w-9 place-items-center rounded-full bg-background/70 text-forest backdrop-blur-md"
+            title="Restaurar foto original"
+            className="tap grid h-8 w-8 place-items-center rounded-full bg-black/45 hover:bg-black/70 text-white shadow-sm backdrop-blur-md transition-colors"
           >
-            <RotateCcw className="h-4 w-4" />
+            <RotateCcw className="h-3.5 w-3.5" />
           </button>
         )}
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
           aria-label="Trocar foto ou vídeo do produto"
-          className="tap grid h-9 w-9 place-items-center rounded-full bg-background/70 text-forest backdrop-blur-md"
+          title="Carregar foto ou vídeo próprio"
+          className="tap grid h-8 w-8 place-items-center rounded-full bg-black/45 hover:bg-black/70 text-white shadow-sm backdrop-blur-md transition-colors"
         >
           {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : (
-            <Camera className="h-4 w-4" />
+            <Camera className="h-3.5 w-3.5" />
           )}
         </button>
       </div>

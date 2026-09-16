@@ -12,6 +12,8 @@ export type Produto = {
   nome: string;
   descricao: string;
   preco: number;
+  precoOriginal?: number;
+  economia?: number;
   imagem: string;
   destaque?: string;
 };
@@ -19,17 +21,21 @@ export type Produto = {
 export const combos: Produto[] = [
   {
     id: "kit-completo",
-    nome: "Kit Completo",
+    nome: "Kit Completo (Açaí + Farinhas)",
     descricao: "1 Litro de Açaí + 500ml de Farinha + 500ml de Tapioca.",
     preco: 48,
+    precoOriginal: 65,
+    economia: 17,
     imagem: comboPara,
-    destaque: "Melhor custo",
+    destaque: "Mais Vendido • Melhor Custo",
   },
   {
     id: "combo-1l-farinha",
     nome: "Combo 1L Açaí + 1L Farinha",
     descricao: "1 Litro de Açaí + 1 Litro de Farinha de Mandioca.",
     preco: 53,
+    precoOriginal: 57,
+    economia: 4,
     imagem: farinhaAgua,
   },
   {
@@ -37,6 +43,8 @@ export const combos: Produto[] = [
     nome: "Combo 2L Açaí + 1L Farinha",
     descricao: "2 Litros de Açaí + 1 Litro de Farinha de Mandioca.",
     preco: 85,
+    precoOriginal: 94,
+    economia: 9,
     imagem: bowlPuro,
   },
   {
@@ -44,6 +52,8 @@ export const combos: Produto[] = [
     nome: "Combo 3L Açaí + 2L Farinha",
     descricao: "3 Litros de Açaí + 2 Litros de Farinha de Mandioca.",
     preco: 131,
+    precoOriginal: 151,
+    economia: 20,
     imagem: comboPara,
     destaque: "Família",
   },
@@ -52,13 +62,18 @@ export const combos: Produto[] = [
     nome: "Combo Açaí + Farinha + Camarão",
     descricao: "1 Litro de Açaí + 1 Litro de Farinha + 250g de Camarão.",
     preco: 70,
+    precoOriginal: 82,
+    economia: 12,
     imagem: camaraoSeco,
+    destaque: "Tradição",
   },
   {
     id: "combo-tapioca-camarao",
     nome: "Combo Açaí + Tapioca + Camarão",
     descricao: "1 Litro de Açaí + 1 Litro de Tapioca + 250g de Camarão.",
     preco: 68,
+    precoOriginal: 82,
+    economia: 14,
     imagem: acaiCamarao,
   },
   {
@@ -67,6 +82,8 @@ export const combos: Produto[] = [
     descricao:
       "1 Litro de Açaí + 1 Litro de Farinha + 1 Conserva Desfiada 320g.",
     preco: 68,
+    precoOriginal: 77,
+    economia: 9,
     imagem: farinhaTapioca,
   },
   {
@@ -75,6 +92,8 @@ export const combos: Produto[] = [
     descricao:
       "1 Litro de Açaí + 1 Litro de Farinha + 200g de Charque Regional do Amapá.",
     preco: 68,
+    precoOriginal: 78,
+    economia: 10,
     imagem: comboPara,
   },
 ];
