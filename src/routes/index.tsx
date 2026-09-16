@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { ProductMedia } from "@/components/ProductMedia";
+import logo from "@/assets/logo-cantinho.png";
 import {
   WHATSAPP,
   avulsos,
@@ -40,6 +41,8 @@ export const Route = createFileRoute("/")({
         content:
           "Garrafas de açaí puro e kits para montar em casa, direto da Amazônia. Peça pelo WhatsApp.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Cardapio,
@@ -121,19 +124,19 @@ function Cardapio() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-36">
+    <div className="min-h-screen bg-gradient-sand pb-36">
       <Header />
 
       <nav className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur-md">
-        <div className="mx-auto flex max-w-3xl gap-2 overflow-x-auto px-3 py-3">
+        <div className="mx-auto flex max-w-3xl justify-center gap-2 px-3 py-3">
           {abas.map((a) => (
             <button
               key={a.id}
               onClick={() => setAba(a.id)}
-              className={`tap whitespace-nowrap rounded-full px-4 py-2 text-sm font-semibold ${
+              className={`tap whitespace-nowrap rounded-full px-5 py-2 text-sm font-semibold transition-colors ${
                 aba === a.id
                   ? "bg-gradient-forest text-forest-foreground shadow-[var(--shadow-soft)]"
-                  : "bg-secondary text-secondary-foreground"
+                  : "bg-secondary text-secondary-foreground hover:bg-accent"
               }`}
             >
               {a.nome}
@@ -142,7 +145,7 @@ function Cardapio() {
         </div>
       </nav>
 
-      <main className="mx-auto max-w-3xl px-3 pt-5">
+      <main className="mx-auto max-w-3xl px-3 pt-6">
         {aba === "combos" && (
           <Secao
             titulo="Combos Especiais"
@@ -195,26 +198,47 @@ function Cardapio() {
 
 function Header() {
   return (
-    <header className="bg-gradient-forest px-4 pb-8 pt-9 text-forest-foreground">
-      <div className="mx-auto max-w-3xl">
-        <div className="inline-flex items-center gap-2 rounded-full bg-gold px-3 py-1 text-xs font-bold text-gold-foreground">
+    <header className="relative overflow-hidden bg-gradient-forest px-4 pb-10 pt-10 text-forest-foreground">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-[0.08]"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 20% 20%, oklch(0.98 0.012 88) 0, transparent 40%), radial-gradient(circle at 85% 80%, oklch(0.79 0.15 82) 0, transparent 45%)",
+        }}
+      />
+      <div className="relative mx-auto max-w-3xl text-center">
+        <div className="flex justify-center">
+          <img
+            src={logo}
+            alt="Logo Cantinho do Norte — Açaí e Empório"
+            width={96}
+            height={96}
+            loading="eager"
+            decoding="async"
+            className="logo-ring h-24 w-24 rounded-full object-cover"
+          />
+        </div>
+        <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-gold px-3 py-1 text-xs font-bold text-gold-foreground">
           <Leaf className="h-3.5 w-3.5" />
           Maringá / PR
         </div>
         <h1 className="mt-3 text-4xl leading-tight font-bold tracking-tight">
           Cantinho do Norte
         </h1>
-        <p className="mt-1 text-sm font-medium opacity-90">Açaí e Empório</p>
-        <p className="mt-4 inline-flex items-start gap-2 rounded-2xl bg-acai/60 px-3 py-2 text-sm font-semibold">
+        <p className="mt-1 text-sm font-semibold uppercase tracking-[0.2em] opacity-90">
+          Açaí e Empório
+        </p>
+        <p className="mx-auto mt-4 inline-flex max-w-md items-start justify-center gap-2 rounded-2xl bg-acai/40 px-4 py-2.5 text-sm font-semibold backdrop-blur-sm">
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
           Garrafas de açaí puro e kits para montar em casa — Sem misturas!
         </p>
-        <div className="mt-4 grid gap-1.5 text-xs opacity-90">
-          <span className="flex items-center gap-2">
+        <div className="mt-5 grid gap-1.5 text-xs opacity-90">
+          <span className="flex items-center justify-center gap-2">
             <Clock className="h-3.5 w-3.5 shrink-0" /> Seg a Sáb · 11h às 22h ·
             Dom 14h às 21h
           </span>
-          <span className="flex items-center gap-2">
+          <span className="flex items-center justify-center gap-2">
             <MapPin className="h-3.5 w-3.5 shrink-0" /> Entrega em Maringá e
             retirada na loja
           </span>
@@ -236,7 +260,7 @@ function Secao({
   return (
     <section className="fade-up">
       <h2 className="text-2xl font-bold text-forest">{titulo}</h2>
-      <p className="mb-4 mt-1 text-sm text-muted-foreground">{subtitulo}</p>
+      <p className="mb-5 mt-1 text-sm text-muted-foreground">{subtitulo}</p>
       {children}
     </section>
   );
@@ -252,7 +276,7 @@ function CardProduto({
   priority?: boolean | undefined;
 }) {
   return (
-    <article className="surface-craft overflow-hidden rounded-2xl">
+    <article className="card-hover surface-craft group overflow-hidden rounded-2xl">
       <ProductMedia
         id={produto.id}
         fallback={produto.imagem}
@@ -268,9 +292,13 @@ function CardProduto({
         <h3 className="text-base font-bold leading-snug text-forest">
           {produto.nome}
         </h3>
-        <p className="mt-1 text-sm text-muted-foreground">{produto.descricao}</p>
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <span className="text-lg font-bold text-acai">{brl(produto.preco)}</span>
+        <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+          {produto.descricao}
+        </p>
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <span className="text-xl font-bold text-acai">
+            {brl(produto.preco)}
+          </span>
           <button
             onClick={onAdd}
             className="tap inline-flex items-center gap-1.5 rounded-full bg-gradient-acai px-4 py-2 text-sm font-semibold text-acai-foreground shadow-[var(--shadow-soft)]"
@@ -314,7 +342,7 @@ function CarrinhoFlutuante({
       )}
 
       <div className="fixed inset-x-0 bottom-0 z-50 px-3 pb-4">
-        <div className="mx-auto max-w-3xl overflow-hidden rounded-3xl border border-border bg-card/80 shadow-[var(--shadow-float)] backdrop-blur-md">
+        <div className="mx-auto max-w-3xl overflow-hidden rounded-3xl border border-border bg-card/85 shadow-[var(--shadow-float)] backdrop-blur-md">
           {aberto && (
             <div className="max-h-[52vh] overflow-y-auto border-b border-border p-4">
               <div className="mb-3 flex items-center justify-between">
