@@ -2,7 +2,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
-  Check,
   Clock,
   Leaf,
   MapPin,
@@ -17,30 +16,29 @@ import {
 import { ProductMedia } from "@/components/ProductMedia";
 import {
   WHATSAPP,
-  bases,
+  avulsos,
   brl,
-  doces,
-  emporio,
-  norte,
-  pratos,
-  tamanhos,
+  combos,
   type Produto,
 } from "@/lib/menu-data";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Cantinho do Norte — Açaí da Amazônia em Maringá" },
+      { title: "Cantinho do Norte — Kits e Garrafas de Açaí em Maringá" },
       {
         name: "description",
         content:
-          "Açaí puro da Amazônia, camarão seco, farinhas artesanais e empório do norte em Maringá/PR. Peça pelo WhatsApp em segundos.",
+          "Kits de açaí, farinhas artesanais, camarão, tucupi e empório amazônico em Maringá/PR. Entrega e retirada — peça pelo WhatsApp.",
       },
-      { property: "og:title", content: "Cantinho do Norte — Açaí e Empório" },
+      {
+        property: "og:title",
+        content: "Cantinho do Norte — Açaí e Empório",
+      },
       {
         property: "og:description",
         content:
-          "O autêntico açaí da Amazônia em Maringá, sem misturas. Monte seu bowl e peça pelo WhatsApp.",
+          "Garrafas de açaí puro e kits para montar em casa, direto da Amazônia. Peça pelo WhatsApp.",
       },
     ],
   }),
@@ -56,15 +54,14 @@ type CartItem = {
 };
 
 const abas = [
-  { id: "cardapio", nome: "Cardápio & Açaí" },
-  { id: "monte", nome: "Monte seu Bowl" },
-  { id: "emporio", nome: "Empório do Norte" },
+  { id: "combos", nome: "Combos Especiais" },
+  { id: "avulsos", nome: "Pronta Entrega (Avulsos)" },
 ] as const;
 
 type AbaId = (typeof abas)[number]["id"];
 
 function Cardapio() {
-  const [aba, setAba] = useState<AbaId>("cardapio");
+  const [aba, setAba] = useState<AbaId>("combos");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartAberto, setCartAberto] = useState(false);
 
@@ -113,7 +110,8 @@ function Cardapio() {
       `*Total: ${brl(total)}*`,
       "",
       "Nome:",
-      "Endereço / Retirada:",
+      "Entrega ou retirada:",
+      "Endereço:",
       "Forma de pagamento:",
     ].join("\n");
     window.open(
@@ -145,13 +143,13 @@ function Cardapio() {
       </nav>
 
       <main className="mx-auto max-w-3xl px-3 pt-5">
-        {aba === "cardapio" && (
+        {aba === "combos" && (
           <Secao
-            titulo="Pratos & Combos do Norte"
-            subtitulo="Feitos na hora com ingredientes que vêm direto do Pará."
+            titulo="Combos Especiais"
+            subtitulo="Kits completos para montar em casa, com economia."
           >
             <div className="grid gap-4 sm:grid-cols-2">
-              {pratos.map((p, i) => (
+              {combos.map((p, i) => (
                 <CardProduto
                   key={p.id}
                   produto={p}
@@ -163,15 +161,13 @@ function Cardapio() {
           </Secao>
         )}
 
-        {aba === "monte" && <MonteSeuBowl onAdd={add} />}
-
-        {aba === "emporio" && (
+        {aba === "avulsos" && (
           <Secao
-            titulo="Empório do Norte"
-            subtitulo="Leve o sabor da Amazônia para a sua cozinha."
+            titulo="Produtos a Pronta Entrega (Avulsos)"
+            subtitulo="Garrafas, polpas e iguarias do norte, prontos para levar."
           >
             <div className="grid gap-4 sm:grid-cols-2">
-              {emporio.map((p) => (
+              {avulsos.map((p) => (
                 <CardProduto
                   key={p.id}
                   produto={p}
@@ -211,7 +207,7 @@ function Header() {
         <p className="mt-1 text-sm font-medium opacity-90">Açaí e Empório</p>
         <p className="mt-4 inline-flex items-start gap-2 rounded-2xl bg-acai/60 px-3 py-2 text-sm font-semibold">
           <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-gold" />
-          O autêntico Açaí da Amazônia em Maringá — Sem misturas!
+          Garrafas de açaí puro e kits para montar em casa — Sem misturas!
         </p>
         <div className="mt-4 grid gap-1.5 text-xs opacity-90">
           <span className="flex items-center gap-2">
@@ -284,192 +280,6 @@ function CardProduto({
         </div>
       </div>
     </article>
-  );
-}
-
-function Opcao({
-  ativo,
-  titulo,
-  extra,
-  onClick,
-}: {
-  ativo: boolean;
-  titulo: string;
-  extra?: number;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`tap flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-left text-sm font-semibold ${
-        ativo
-          ? "border-acai bg-acai/10 text-acai"
-          : "border-border bg-card text-foreground"
-      }`}
-    >
-      <span className="flex items-center gap-2">
-        <span
-          className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border ${
-            ativo ? "border-acai bg-acai text-acai-foreground" : "border-border"
-          }`}
-        >
-          {ativo && <Check className="h-3 w-3" />}
-        </span>
-        {titulo}
-      </span>
-      {extra ? (
-        <span className="shrink-0 text-xs text-muted-foreground">
-          + {brl(extra)}
-        </span>
-      ) : null}
-    </button>
-  );
-}
-
-function MonteSeuBowl({
-  onAdd,
-}: {
-  onAdd: (i: { nome: string; preco: number; detalhes?: string[] }) => void;
-}) {
-  const [tamanho, setTamanho] = useState(tamanhos[1]!.id);
-  const [base, setBase] = useState(bases[0]!.id);
-  const [selDoces, setSelDoces] = useState<string[]>([]);
-  const [selNorte, setSelNorte] = useState<string[]>([]);
-
-  const t = tamanhos.find((x) => x.id === tamanho)!;
-  const b = bases.find((x) => x.id === base)!;
-  const nortes = norte.filter((x) => selNorte.includes(x.id));
-  const docesSel = doces.filter((x) => selDoces.includes(x.id));
-  const preco =
-    t.preco + b.preco + nortes.reduce((s, x) => s + x.preco, 0);
-
-  const toggleDoce = (id: string) =>
-    setSelDoces((prev) => {
-      if (prev.includes(id)) return prev.filter((p) => p !== id);
-      if (prev.length >= 3) {
-        toast("Máximo de 3 adicionais doces");
-        return prev;
-      }
-      return [...prev, id];
-    });
-
-  const toggleNorte = (id: string) =>
-    setSelNorte((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
-    );
-
-  return (
-    <section className="fade-up">
-      <h2 className="text-2xl font-bold text-forest">Monte seu Açaí / Bowl</h2>
-      <p className="mb-4 mt-1 text-sm text-muted-foreground">
-        Quatro passos e o seu bowl sai do jeito que você gosta.
-      </p>
-
-      <Passo n={1} titulo="Escolha o tamanho">
-        <div className="grid gap-2">
-          {tamanhos.map((x) => (
-            <Opcao
-              key={x.id}
-              ativo={tamanho === x.id}
-              titulo={`${x.nome} — ${brl(x.preco)}`}
-              onClick={() => setTamanho(x.id)}
-            />
-          ))}
-        </div>
-      </Passo>
-
-      <Passo n={2} titulo="Base / creme">
-        <div className="grid gap-2">
-          {bases.map((x) => (
-            <Opcao
-              key={x.id}
-              ativo={base === x.id}
-              titulo={x.nome}
-              extra={x.preco}
-              onClick={() => setBase(x.id)}
-            />
-          ))}
-        </div>
-      </Passo>
-
-      <Passo n={3} titulo={`Adicionais doces (${selDoces.length}/3)`}>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {doces.map((x) => (
-            <Opcao
-              key={x.id}
-              ativo={selDoces.includes(x.id)}
-              titulo={x.nome}
-              onClick={() => toggleDoce(x.id)}
-            />
-          ))}
-        </div>
-      </Passo>
-
-      <Passo n={4} titulo="Toques do Norte (opcional)">
-        <div className="grid gap-2 sm:grid-cols-2">
-          {norte.map((x) => (
-            <Opcao
-              key={x.id}
-              ativo={selNorte.includes(x.id)}
-              titulo={x.nome}
-              extra={x.preco}
-              onClick={() => toggleNorte(x.id)}
-            />
-          ))}
-        </div>
-      </Passo>
-
-      <div className="surface-craft sticky bottom-32 mt-5 flex items-center justify-between gap-3 rounded-2xl p-4">
-        <div className="min-w-0">
-          <p className="text-xs text-muted-foreground">Seu bowl</p>
-          <p className="truncate text-lg font-bold text-acai">{brl(preco)}</p>
-        </div>
-        <button
-          onClick={() =>
-            onAdd({
-              nome: `Bowl montado (${t.nome})`,
-              preco,
-              detalhes: [
-                `Base: ${b.nome}`,
-                docesSel.length
-                  ? `Doces: ${docesSel.map((d) => d.nome).join(", ")}`
-                  : "Sem adicionais doces",
-                nortes.length
-                  ? `Toques do Norte: ${nortes.map((d) => d.nome).join(", ")}`
-                  : "",
-              ].filter(Boolean),
-            })
-          }
-          className="tap inline-flex shrink-0 items-center gap-1.5 rounded-full bg-gradient-acai px-5 py-2.5 text-sm font-semibold text-acai-foreground"
-        >
-          <Plus className="h-4 w-4" /> Adicionar
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function Passo({
-  n,
-  titulo,
-  children,
-}: {
-  n: number;
-  titulo: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="surface-craft mb-4 rounded-2xl p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-gradient-forest text-xs font-bold text-forest-foreground">
-          {n}
-        </span>
-        <h3 className="text-sm font-bold uppercase tracking-wide text-forest">
-          {titulo}
-        </h3>
-      </div>
-      {children}
-    </div>
   );
 }
 
