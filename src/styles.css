@@ -82,17 +82,24 @@
   --gold-foreground: oklch(0.28 0.05 120);
 
   --gradient-forest: linear-gradient(
-    145deg,
-    oklch(0.3 0.07 152),
-    oklch(0.38 0.09 158)
+    150deg,
+    oklch(0.28 0.06 152),
+    oklch(0.4 0.09 158)
   );
   --gradient-acai: linear-gradient(
     135deg,
     oklch(0.34 0.14 318),
     oklch(0.46 0.16 330)
   );
-  --shadow-soft: 0 10px 30px -18px oklch(0.34 0.07 152 / 0.45);
+  --gradient-sand: linear-gradient(
+    160deg,
+    oklch(0.975 0.014 86),
+    oklch(0.935 0.03 82)
+  );
+  --shadow-soft: 0 6px 24px -12px oklch(0.34 0.07 152 / 0.22);
   --shadow-float: 0 18px 40px -16px oklch(0.34 0.07 152 / 0.35);
+  --shadow-card: 0 1px 2px oklch(0.3 0.05 120 / 0.06),
+    0 8px 24px -14px oklch(0.3 0.05 120 / 0.18);
 }
 
 @layer base {
