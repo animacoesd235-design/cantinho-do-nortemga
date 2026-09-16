@@ -19,6 +19,7 @@ import { ProductMedia } from "@/components/ProductMedia";
 import { ModalUpsell } from "@/components/ModalUpsell";
 import { ModalCheckout } from "@/components/ModalCheckout";
 import { ModalRastreio } from "@/components/ModalRastreio";
+import { ModalSugestaoPreparo } from "@/components/ModalSugestaoPreparo";
 import { SocialProofToast } from "@/components/SocialProofToast";
 import logo from "@/assets/logo-cantinho.png";
 import heroBg from "@/assets/hero-bg.jpg";
@@ -83,6 +84,7 @@ function Cardapio() {
   const [checkoutAberto, setCheckoutAberto] = useState(false);
   const [rastreioOrderId, setRastreioOrderId] = useState<string | null>(null);
   const [pedidoAtivo, setPedidoAtivo] = useState<Order | null>(null);
+  const [preparoAberto, setPreparoAberto] = useState(false);
 
   // Sincroniza e monitora pedido ativo do cliente
   useEffect(() => {
@@ -232,6 +234,7 @@ function Cardapio() {
                   priority={i === 0}
                   isCombo={true}
                   onAdd={() => iniciarAdicao(p, true)}
+                  onAbrirReceitas={() => setPreparoAberto(true)}
                 />
               ))}
             </div>
@@ -249,6 +252,7 @@ function Cardapio() {
                   key={p.id}
                   produto={p}
                   onAdd={() => iniciarAdicao(p, false)}
+                  onAbrirReceitas={() => setPreparoAberto(true)}
                 />
               ))}
             </div>
@@ -298,6 +302,11 @@ function Cardapio() {
           orderId={rastreioOrderId}
           onClose={() => setRastreioOrderId(null)}
         />
+      )}
+
+      {/* Modal de Sugestão de Preparo (Monte em Casa) */}
+      {preparoAberto && (
+        <ModalSugestaoPreparo onClose={() => setPreparoAberto(false)} />
       )}
 
       {/* Prova Social em Tempo Real (Toasts de Vendas) */}
@@ -410,17 +419,25 @@ function Secao({
 function CardProduto({
   produto,
   onAdd,
+  onAbrirReceitas,
   priority,
   isCombo,
 }: {
   produto: Produto;
   onAdd: () => void;
+  onAbrirReceitas?: () => void;
   priority?: boolean | undefined;
   isCombo?: boolean;
 }) {
   const economia =
     produto.economia ??
     (produto.precoOriginal ? produto.precoOriginal - produto.preco : 0);
+
+  const temReceita =
+    isCombo ||
+    produto.id === "acai-litro" ||
+    produto.nome.toLowerCase().includes("açaí") ||
+    produto.descricao.toLowerCase().includes("açaí");
 
   return (
     <article className="group relative flex flex-col justify-between overflow-hidden rounded-3xl bg-card border border-border/80 shadow-[var(--shadow-card)] hover:shadow-2xl hover:border-gold/50 transition-all duration-300">
@@ -450,11 +467,19 @@ function CardProduto({
             </div>
           )}
 
-          {isCombo && (
+          {temReceita && onAbrirReceitas && (
             <div className="absolute left-2.5 bottom-2.5 z-10">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-black/75 backdrop-blur-md px-3 py-1 text-[11px] font-semibold text-white/95 border border-white/20 shadow-md">
-                📸 Sugestão de preparo (Monte em casa)
-              </span>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAbrirReceitas();
+                }}
+                aria-label="Ver sugestões de preparo do açaí"
+                className="tap inline-flex items-center gap-1.5 rounded-full bg-black/80 hover:bg-black/95 backdrop-blur-md px-3 py-1.5 text-[11px] font-bold text-amber-200 hover:text-white border border-amber-400/40 hover:border-amber-400 shadow-lg transition-all active:scale-95"
+              >
+                <span>📸 Sugestão de preparo (Monte em casa)</span>
+              </button>
             </div>
           )}
         </div>
