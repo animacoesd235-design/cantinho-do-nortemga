@@ -21,6 +21,7 @@ import {
   Sparkles,
   Trash2,
   UtensilsCrossed,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/logo-cantinho.png";
@@ -180,6 +181,14 @@ function PainelCozinha() {
           </div>
 
           <div className="flex items-center flex-wrap gap-2">
+            <Link
+              to="/admin"
+              className="tap inline-flex items-center gap-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 px-3.5 py-2 text-xs font-bold text-amber-300 transition-colors shadow-xs"
+            >
+              <Settings className="h-3.5 w-3.5 text-amber-400" />
+              <span>Painel Admin</span>
+            </Link>
+
             <button
               onClick={criarPedidoTeste}
               className="tap inline-flex items-center gap-1.5 rounded-xl bg-forest/30 border border-forest/40 hover:bg-forest/50 px-3.5 py-2 text-xs font-bold text-white shadow-xs transition-colors"
@@ -292,6 +301,16 @@ function PainelCozinha() {
 
       {/* Componente Invisível na tela, visível apenas na impressão (@media print) */}
       <ThermalReceipt order={pedidoImprimir} />
+
+      {/* Botão Flutuante Rápido para o Admin */}
+      <Link
+        to="/admin"
+        title="Ir para o Painel Administrativo"
+        className="tap fixed bottom-4 left-4 z-40 inline-flex items-center gap-2 rounded-full bg-[#121c15]/95 hover:bg-[#17251c] text-amber-200 border border-amber-500/40 px-4 py-2 text-xs font-bold shadow-2xl backdrop-blur-md transition-all hover:scale-105"
+      >
+        <Settings className="h-4 w-4 text-amber-400" />
+        <span>⚙️ Painel Admin</span>
+      </Link>
     </div>
   );
 }

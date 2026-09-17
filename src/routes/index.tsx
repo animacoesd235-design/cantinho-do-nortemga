@@ -13,6 +13,8 @@ import {
   Sparkles,
   Trash2,
   X,
+  Settings,
+  UtensilsCrossed,
 } from "lucide-react";
 
 import { ProductMedia } from "@/components/ProductMedia";
@@ -345,6 +347,17 @@ function Cardapio() {
 
       {/* Prova Social em Tempo Real (Toasts de Vendas) */}
       <SocialProofToast />
+
+      {/* Botão Flutuante de Acesso Rápido ao Admin */}
+      <Link
+        to="/admin"
+        title="Painel Administrativo"
+        className="tap fixed bottom-4 left-4 z-40 inline-flex items-center gap-1.5 rounded-full bg-[#0e1710]/90 hover:bg-[#121c15] text-amber-200 hover:text-white border border-amber-500/40 px-3.5 py-2 text-xs font-bold shadow-2xl backdrop-blur-md transition-all hover:scale-105"
+      >
+        <Settings className="h-3.5 w-3.5 text-amber-400" />
+        <span className="hidden sm:inline">Painel Admin</span>
+        <span className="sm:hidden">Admin</span>
+      </Link>
     </div>
   );
 }
@@ -439,6 +452,24 @@ function HeroSection() {
         />
         {/* Filtro Escuro e Overlay Elegante em Camadas */}
         <div className="hero-overlay absolute inset-0 backdrop-blur-[1px]" />
+      </div>
+
+      {/* Atalhos Rápidos de Gestão e Cozinha no Topo */}
+      <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
+        <Link
+          to="/admin"
+          className="tap inline-flex items-center gap-1.5 rounded-full bg-black/60 hover:bg-black/85 text-amber-200 hover:text-white border border-amber-400/40 px-3 py-1.5 text-xs font-bold backdrop-blur-md transition-all shadow-md"
+        >
+          <Settings className="h-3.5 w-3.5 text-amber-400" />
+          <span>Painel Admin</span>
+        </Link>
+        <Link
+          to="/cozinha"
+          className="tap inline-flex items-center gap-1.5 rounded-full bg-black/60 hover:bg-black/85 text-emerald-200 hover:text-white border border-emerald-400/40 px-3 py-1.5 text-xs font-bold backdrop-blur-md transition-all shadow-md"
+        >
+          <UtensilsCrossed className="h-3.5 w-3.5 text-emerald-400" />
+          <span className="hidden sm:inline">Cozinha (KDS)</span>
+        </Link>
       </div>
 
       {/* Conteúdo Centralizado do Banner - Clean, Compacto e Focado na Marca */}
