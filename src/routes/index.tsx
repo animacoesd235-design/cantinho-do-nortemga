@@ -347,17 +347,6 @@ function Cardapio() {
 
       {/* Prova Social em Tempo Real (Toasts de Vendas) */}
       <SocialProofToast />
-
-      {/* Botão Flutuante de Acesso Rápido ao Admin */}
-      <Link
-        to="/admin"
-        title="Painel Administrativo"
-        className="tap fixed bottom-4 left-4 z-40 inline-flex items-center gap-1.5 rounded-full bg-[#0e1710]/90 hover:bg-[#121c15] text-amber-200 hover:text-white border border-amber-500/40 px-3.5 py-2 text-xs font-bold shadow-2xl backdrop-blur-md transition-all hover:scale-105"
-      >
-        <Settings className="h-3.5 w-3.5 text-amber-400" />
-        <span className="hidden sm:inline">Painel Admin</span>
-        <span className="sm:hidden">Admin</span>
-      </Link>
     </div>
   );
 }
@@ -452,24 +441,6 @@ function HeroSection() {
         />
         {/* Filtro Escuro e Overlay Elegante em Camadas */}
         <div className="hero-overlay absolute inset-0 backdrop-blur-[1px]" />
-      </div>
-
-      {/* Atalhos Rápidos de Gestão e Cozinha no Topo */}
-      <div className="absolute top-3 right-3 z-20 flex items-center gap-2">
-        <Link
-          to="/admin"
-          className="tap inline-flex items-center gap-1.5 rounded-full bg-black/60 hover:bg-black/85 text-amber-200 hover:text-white border border-amber-400/40 px-3 py-1.5 text-xs font-bold backdrop-blur-md transition-all shadow-md"
-        >
-          <Settings className="h-3.5 w-3.5 text-amber-400" />
-          <span>Painel Admin</span>
-        </Link>
-        <Link
-          to="/cozinha"
-          className="tap inline-flex items-center gap-1.5 rounded-full bg-black/60 hover:bg-black/85 text-emerald-200 hover:text-white border border-emerald-400/40 px-3 py-1.5 text-xs font-bold backdrop-blur-md transition-all shadow-md"
-        >
-          <UtensilsCrossed className="h-3.5 w-3.5 text-emerald-400" />
-          <span className="hidden sm:inline">Cozinha (KDS)</span>
-        </Link>
       </div>
 
       {/* Conteúdo Centralizado do Banner - Clean, Compacto e Focado na Marca */}
@@ -724,19 +695,20 @@ function Footer({
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 text-xs">
               <Link
                 to="/admin"
-                className="tap inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-300 font-bold px-3.5 py-1.5 transition-colors border border-amber-500/30"
+                className="text-muted-foreground hover:text-amber-500 transition-colors inline-flex items-center gap-1 opacity-70 hover:opacity-100"
               >
-                <span>⚙️ Painel Admin</span>
+                <span>🔒 Acesso Restrito</span>
               </Link>
+              <span className="text-muted-foreground/40">•</span>
               <Link
                 to="/cozinha"
-                className="tap inline-flex items-center gap-1.5 rounded-full bg-forest/15 hover:bg-forest/25 text-forest font-bold px-3.5 py-1.5 transition-colors border border-forest/20"
+                className="text-muted-foreground hover:text-forest transition-colors inline-flex items-center gap-1 opacity-70 hover:opacity-100"
               >
-                <ExternalLink className="h-3.5 w-3.5" />
-                <span>Painel da Cozinha (KDS)</span>
+                <ExternalLink className="h-3 w-3" />
+                <span>Painel Cozinha (KDS)</span>
               </Link>
             </div>
           </div>

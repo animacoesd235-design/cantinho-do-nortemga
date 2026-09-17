@@ -8,7 +8,11 @@ import {
   Clock,
   DollarSign,
   Edit,
+  Eye,
+  EyeOff,
+  KeyRound,
   Lock,
+  LogOut,
   Minus,
   Package,
   Plus,
@@ -16,6 +20,7 @@ import {
   RotateCcw,
   Save,
   Settings,
+  ShieldCheck,
   Sparkles,
   TrendingDown,
   TrendingUp,
@@ -26,6 +31,12 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/logo-cantinho.png";
+import {
+  isAdminAuthenticated,
+  loginAdmin,
+  logoutAdmin,
+  onAuthChange,
+} from "@/lib/auth";
 import {
   addCashMovement,
   calculateCashSummary,
@@ -65,7 +76,23 @@ export const Route = createFileRoute("/admin")({
 });
 
 function PainelAdmin() {
+  const [autenticado, setAutenticado] = useState(() => isAdminAuthenticated());
   const [tabAtiva, setTabAtiva] = useState<"caixa" | "produtos" | "config">("caixa");
+
+  useEffect(() => {
+    return onAuthChange(() => {
+      setAutenticado(isAdminAuthenticated());
+    });
+  }, []);
+
+  const handleLogout = () => {
+    logoutAdmin();
+    toast.info("Sessão administrativa encerrada com sucesso.");
+  };
+
+  if (!autenticado) {
+    return <TelaLoginAdmin onSucesso={() => setAutenticado(true)} />;
+  }
 
   return (
     <div className="min-h-screen bg-[#0a120c] text-[#f4efe6] antialiased pb-16">
@@ -141,6 +168,14 @@ function PainelAdmin() {
               <ArrowLeft className="h-3.5 w-3.5" />
               <span>Ver Cardápio</span>
             </Link>
+            <button
+              onClick={handleLogout}
+              title="Encerrar sessão administrativa e trancar o painel"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-red-500/15 border border-red-500/30 hover:bg-red-500/25 px-3 py-1.5 text-xs font-bold text-red-300 transition-colors cursor-pointer"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span>Sair / Trancar</span>
+            </button>
           </div>
         </div>
       </header>
@@ -1343,6 +1378,176 @@ function TabConfiguracoes() {
           ))}
         </div>
       </form>
+    </div>
+  );
+}
+
+// =========================================================================
+// TELA DE LOGIN DO ADMINISTRADOR (ÁREA RESTRITA)
+// =========================================================================
+
+function TelaLoginAdmin({ onSucesso }: { onSucesso: () => void }) {
+  const [senha, setSenha] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [erro, setErro] = useState(false);
+  const [tentando, setTentando] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!senha.trim()) return;
+
+    setTentando(true);
+    setErro(false);
+
+    setTimeout(() => {
+      const ok = loginAdmin(senha);
+      setTentando(false);
+      if (ok) {
+        toast.success("Acesso administrativo autorizado!");
+        onSucesso();
+      } else {
+        setErro(true);
+        toast.error("Senha incorreta. Verifique suas credenciais.");
+      }
+    }, 250);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0a120c] text-[#f4efe6] antialiased flex flex-col justify-between">
+      {/* Header simplificado */}
+      <header className="border-b border-white/10 bg-[#0e1710]/95 backdrop-blur-md px-4 py-3 shadow-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 group">
+            <img
+              src={logo}
+              alt="Cantinho do Norte"
+              className="h-9 w-9 rounded-full object-cover border border-amber-400/40 shadow-xs group-hover:scale-105 transition-transform"
+            />
+            <div>
+              <span className="block text-sm font-black font-display tracking-wide text-amber-300">
+                CANTINHO DO NORTE
+              </span>
+              <span className="block text-[11px] font-semibold text-white/60">
+                Painel Administrativo
+              </span>
+            </div>
+          </Link>
+
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/15 px-3.5 py-1.5 text-xs font-bold text-white transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Voltar ao Cardápio</span>
+          </Link>
+        </div>
+      </header>
+
+      {/* Card Central de Login */}
+      <main className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="relative overflow-hidden rounded-3xl border border-amber-500/25 bg-[#0e1710] p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+            {/* Glows decorativos sutis */}
+            <div className="pointer-events-none absolute -top-24 -right-24 h-48 w-48 rounded-full bg-amber-500/10 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 -left-24 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl" />
+
+            <div className="relative z-10 flex flex-col items-center text-center">
+              {/* Ícone de Cadeado com Selo */}
+              <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/20 to-emerald-500/10 border border-amber-400/30 text-amber-300 shadow-inner">
+                <Lock className="h-8 w-8 text-amber-400" />
+                <div className="absolute -bottom-1 -right-1 rounded-full bg-[#0a120c] p-0.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                </div>
+              </div>
+
+              <h1 className="text-xl font-black font-display tracking-wide text-amber-300">
+                Acesso Administrativo
+              </h1>
+              <p className="mt-1 text-xs text-white/60 max-w-xs">
+                Área restrita para controle de caixa, gestão de produtos e configuração de horários.
+              </p>
+
+              {/* Formulário de Senha */}
+              <form onSubmit={handleSubmit} className="mt-6 w-full space-y-4 text-left">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-white/80">
+                      Senha de Acesso
+                    </label>
+                    <span className="text-[10px] text-amber-400/80 font-semibold">
+                      Padrão: admin123
+                    </span>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type={mostrarSenha ? "text" : "password"}
+                      value={senha}
+                      onChange={(e) => {
+                        setSenha(e.target.value);
+                        if (erro) setErro(false);
+                      }}
+                      placeholder="Digite a senha de administrador..."
+                      autoFocus
+                      className={`w-full rounded-xl border bg-black/40 pl-3.5 pr-11 py-3 text-sm text-white placeholder-white/30 outline-none transition-all ${
+                        erro
+                          ? "border-red-500 ring-2 ring-red-500/20"
+                          : "border-white/15 focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20"
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setMostrarSenha(!mostrarSenha)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
+                    >
+                      {mostrarSenha ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+
+                  {erro && (
+                    <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-400">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      <span>Senha incorreta. Use a senha padrão "admin123".</span>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={tentando || !senha.trim()}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black py-3 px-4 font-black text-sm transition-all shadow-lg hover:shadow-amber-500/20 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {tentando ? (
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                  ) : (
+                    <>
+                      <KeyRound className="h-4 w-4" />
+                      <span>Desbloquear Painel</span>
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Informações adicionais / Atalho */}
+              <div className="mt-6 pt-4 border-t border-white/10 w-full flex items-center justify-between text-[11px] text-white/40">
+                <span>Cantinho do Norte Delivery</span>
+                <Link to="/cozinha" className="hover:text-amber-300 transition-colors">
+                  Ir para Cozinha (KDS) →
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer className="py-4 text-center text-xs text-white/30 border-t border-white/5">
+        Acesso restrito a operadores do Cantinho do Norte • Maringá / PR
+      </footer>
     </div>
   );
 }
