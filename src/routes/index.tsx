@@ -25,11 +25,18 @@ import logo from "@/assets/logo-cantinho.png";
 import heroBg from "@/assets/hero-bg.jpg";
 import {
   WHATSAPP,
-  avulsos,
   brl,
-  combos,
   type Produto,
 } from "@/lib/menu-data";
+import {
+  getCustomProducts,
+  onProductsUpdate,
+} from "@/lib/products-store";
+import {
+  checkStoreOpenStatus,
+  onStoreSettingsUpdate,
+  type StoreStatusResult,
+} from "@/lib/store-settings";
 import {
   getLastOrderId,
   getOrderById,
@@ -85,6 +92,30 @@ function Cardapio() {
   const [rastreioOrderId, setRastreioOrderId] = useState<string | null>(null);
   const [pedidoAtivo, setPedidoAtivo] = useState<Order | null>(null);
   const [preparoAberto, setPreparoAberto] = useState(false);
+
+  // Sincronização dinâmica de produtos e status da loja
+  const [produtosData, setProdutosData] = useState(() => getCustomProducts());
+  const [storeStatus, setStoreStatus] = useState<StoreStatusResult>(() => checkStoreOpenStatus());
+
+  useEffect(() => {
+    const cleanup = onProductsUpdate(() => {
+      setProdutosData(getCustomProducts());
+    });
+    return cleanup;
+  }, []);
+
+  useEffect(() => {
+    const checar = () => setStoreStatus(checkStoreOpenStatus());
+    const cleanup = onStoreSettingsUpdate(checar);
+    const timer = setInterval(checar, 60000);
+    return () => {
+      cleanup();
+      clearInterval(timer);
+    };
+  }, []);
+
+  const combos = produtosData.combos.filter((c) => c.ativo !== false);
+  const avulsos = produtosData.avulsos.filter((a) => a.ativo !== false);
 
   // Sincroniza e monitora pedido ativo do cliente
   useEffect(() => {
@@ -176,6 +207,9 @@ function Cardapio() {
     <div className="min-h-screen bg-gradient-sand pb-36">
       {/* Banner de Urgência e Escassez (Topo da Página) */}
       <BannerUrgencia />
+
+      {/* Banner Amigável quando Fora de Horário ou em Pausa Emergencial */}
+      {!storeStatus.isOpen && <BannerLojaFechada status={storeStatus} />}
 
       {/* Cabeçalho Clean e Sofisticado */}
       <HeroSection />
@@ -341,6 +375,52 @@ function BannerUrgencia() {
         <span className="hidden md:inline-flex items-center rounded-full bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 text-[10px] uppercase font-black tracking-wider text-amber-300 shrink-0">
           Últimas Garrafas
         </span>
+      </div>
+    </aside>
+  );
+}
+
+function BannerLojaFechada({ status }: { status: StoreStatusResult }) {
+  return (
+    <aside
+      role="region"
+      aria-label="Aviso de atendimento"
+      className="relative z-30 bg-gradient-to-b from-[#0e1710] to-[#121c15] text-white border-b border-amber-500/30 px-4 py-3.5 sm:py-4 shadow-lg"
+    >
+      <div className="mx-auto max-w-4xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+        <div className="flex items-start gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 mt-0.5">
+            <Clock className="h-5 w-5" />
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm sm:text-base font-bold text-amber-300 font-display">
+                {status.bannerTitle}
+              </h3>
+              <span className="rounded-full bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 text-[10px] font-extrabold uppercase text-amber-200">
+                {status.badgeText}
+              </span>
+            </div>
+            <p className="text-xs sm:text-sm text-white/80 leading-snug">
+              {status.bannerMessage}
+            </p>
+            <p className="text-[11px] text-white/60">
+              {status.nextSchedule ? `⏰ Horário: ${status.nextSchedule}. ` : ""}
+              Nosso cardápio segue aberto para você montar seu pedido ou agendar com antecedência!
+            </p>
+          </div>
+        </div>
+
+        <a
+          href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(
+            "Olá! Estou no cardápio do Cantinho do Norte e gostaria de tirar uma dúvida ou agendar um pedido."
+          )}`}
+          target="_blank"
+          rel="noreferrer"
+          className="tap shrink-0 inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black px-4 py-2 text-xs font-black shadow-md transition-all"
+        >
+          <span>💬 Falar no WhatsApp</span>
+        </a>
       </div>
     </aside>
   );
@@ -613,13 +693,21 @@ function Footer({
               )}
             </div>
 
-            <Link
-              to="/cozinha"
-              className="tap inline-flex items-center gap-1.5 rounded-full bg-forest/15 hover:bg-forest/25 text-forest font-bold px-3.5 py-1.5 transition-colors border border-forest/20"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              <span>Painel da Cozinha (KDS em Tempo Real)</span>
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link
+                to="/admin"
+                className="tap inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-300 font-bold px-3.5 py-1.5 transition-colors border border-amber-500/30"
+              >
+                <span>⚙️ Painel Admin</span>
+              </Link>
+              <Link
+                to="/cozinha"
+                className="tap inline-flex items-center gap-1.5 rounded-full bg-forest/15 hover:bg-forest/25 text-forest font-bold px-3.5 py-1.5 transition-colors border border-forest/20"
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                <span>Painel da Cozinha (KDS)</span>
+              </Link>
+            </div>
           </div>
         </div>
 

@@ -15,6 +15,7 @@ import {
   Package,
   Phone,
   Plus,
+  Printer,
   RefreshCw,
   Send,
   Sparkles,
@@ -23,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/logo-cantinho.png";
+import { ThermalReceipt } from "@/components/ThermalReceipt";
 import { brl } from "@/lib/menu-data";
 import {
   buildWhatsAppStatusUrl,
@@ -45,6 +47,7 @@ export const Route = createFileRoute("/cozinha")({
 
 function PainelCozinha() {
   const [pedidos, setPedidos] = useState<Order[]>([]);
+  const [pedidoImprimir, setPedidoImprimir] = useState<Order | null>(null);
 
   useEffect(() => {
     setPedidos(getOrders());
@@ -57,6 +60,13 @@ function PainelCozinha() {
   const novos = pedidos.filter((p) => p.status === "novo");
   const emPreparo = pedidos.filter((p) => p.status === "preparo");
   const prontos = pedidos.filter((p) => p.status === "pronto");
+
+  const handleImprimir = (pedido: Order) => {
+    setPedidoImprimir(pedido);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
 
   const moverStatus = (orderId: string, novoStatus: Order["status"]) => {
     updateOrderStatus(orderId, novoStatus);
@@ -223,6 +233,7 @@ function PainelCozinha() {
                 onEnviarZap={(tipo) => enviarZap(pedido, tipo)}
                 btnTexto="Iniciar Preparo ⏳"
                 onExcluir={() => excluir(pedido.id)}
+                onImprimir={() => handleImprimir(pedido)}
               />
             ))}
             {novos.length === 0 && <EmptyColumn texto="Nenhum novo pedido na fila." />}
@@ -245,6 +256,7 @@ function PainelCozinha() {
                 onEnviarZap={(tipo) => enviarZap(pedido, tipo)}
                 btnTexto="Marcar como Saiu para Entrega 🛵"
                 onExcluir={() => excluir(pedido.id)}
+                onImprimir={() => handleImprimir(pedido)}
               />
             ))}
             {emPreparo.length === 0 && (
@@ -268,6 +280,7 @@ function PainelCozinha() {
                 btnTexto="Concluir / Entregue ✅"
                 isFinal={true}
                 onExcluir={() => excluir(pedido.id)}
+                onImprimir={() => handleImprimir(pedido)}
               />
             ))}
             {prontos.length === 0 && (
@@ -276,6 +289,9 @@ function PainelCozinha() {
           </ColunaKanban>
         </div>
       </main>
+
+      {/* Componente Invisível na tela, visível apenas na impressão (@media print) */}
+      <ThermalReceipt order={pedidoImprimir} />
     </div>
   );
 }
@@ -320,6 +336,7 @@ function CardComanda({
   btnTexto,
   isFinal = false,
   onExcluir,
+  onImprimir,
 }: {
   pedido: Order;
   onAvancar: () => void;
@@ -329,6 +346,7 @@ function CardComanda({
   btnTexto: string;
   isFinal?: boolean;
   onExcluir: () => void;
+  onImprimir: () => void;
 }) {
   const hora = new Date(pedido.createdAt).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
@@ -497,6 +515,16 @@ function CardComanda({
           )}
         </div>
       </div>
+
+      {/* Botão de Impressão Térmica */}
+      <button
+        type="button"
+        onClick={onImprimir}
+        className="tap w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/20 text-amber-200 text-xs font-bold transition-all shadow-xs"
+      >
+        <Printer className="h-3.5 w-3.5 text-amber-300" />
+        <span>🖨️ Imprimir Comanda</span>
+      </button>
 
       {/* Botão Principal de Avanço de Status */}
       <button

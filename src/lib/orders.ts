@@ -1,4 +1,6 @@
-﻿export type ExtraItem = {
+import { registerOrderSale } from "./cash-store";
+
+export type ExtraItem = {
   id: string;
   nome: string;
   preco: number;
@@ -106,6 +108,7 @@ export function saveOrder(order: Order): void {
     const updated = [order, ...current.filter((o) => o.id !== order.id)];
     localStorage.setItem(ORDERS_KEY, JSON.stringify(updated));
     setLastOrderId(order.id);
+    registerOrderSale(order);
     dispatchOrdersUpdate();
   } catch (e) {
     console.error("Erro ao salvar pedido no KDS:", e);

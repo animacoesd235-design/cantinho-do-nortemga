@@ -206,3 +206,29 @@
     transform: translateY(0);
   }
 }
+
+@media print {
+  body {
+    background: #fff !important;
+    color: #000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  header, nav, main, footer, .no-print, [role="region"], [data-sonner-toaster] {
+    display: none !important;
+  }
+
+  #thermal-receipt {
+    display: block !important;
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 80mm;
+    margin: 0 auto;
+    padding: 2mm;
+    color: #000 !important;
+    background: #fff !important;
+  }
+}
