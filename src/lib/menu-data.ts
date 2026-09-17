@@ -174,5 +174,7 @@ export const avulsos: Produto[] = [
 
 export const WHATSAPP = "5544999999999";
 
-export const brl = (v: number) =>
-  v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+export const brl = (v?: number | null) => {
+  const num = typeof v === "number" && !isNaN(v) ? v : 0;
+  return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+};

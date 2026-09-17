@@ -22,6 +22,7 @@ import {
   Unlock,
   Wallet,
   X,
+  Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/logo-cantinho.png";
@@ -715,14 +716,32 @@ function TabCaixa() {
 // =========================================================================
 
 function TabProdutos() {
-  const [combos, setCombos] = useState<CustomProduct[]>([]);
-  const [avulsos, setAvulsos] = useState<CustomProduct[]>([]);
+  const [combos, setCombos] = useState<CustomProduct[]>(() => {
+    try {
+      const data = getCustomProducts();
+      return Array.isArray(data?.combos) ? data.combos : [];
+    } catch {
+      return [];
+    }
+  });
+  const [avulsos, setAvulsos] = useState<CustomProduct[]>(() => {
+    try {
+      const data = getCustomProducts();
+      return Array.isArray(data?.avulsos) ? data.avulsos : [];
+    } catch {
+      return [];
+    }
+  });
   const [produtoEditando, setProdutoEditando] = useState<CustomProduct | null>(null);
 
   const carregarProdutos = () => {
-    const data = getCustomProducts();
-    setCombos(data.combos);
-    setAvulsos(data.avulsos);
+    try {
+      const data = getCustomProducts();
+      setCombos(Array.isArray(data?.combos) ? data.combos : []);
+      setAvulsos(Array.isArray(data?.avulsos) ? data.avulsos : []);
+    } catch (e) {
+      console.error("Erro ao carregar produtos:", e);
+    }
   };
 
   useEffect(() => {
@@ -735,22 +754,28 @@ function TabProdutos() {
     e.preventDefault();
     if (!produtoEditando) return;
 
-    if (!produtoEditando.nome.trim()) {
+    const nome = (produtoEditando.nome || "").trim();
+    if (!nome) {
       toast.error("O nome do produto é obrigatório");
       return;
     }
-    if (produtoEditando.preco <= 0) {
+    const preco = typeof produtoEditando.preco === "number" ? produtoEditando.preco : parseFloat(String(produtoEditando.preco)) || 0;
+    if (preco <= 0) {
       toast.error("O preço deve ser maior que zero");
       return;
     }
 
-    saveProduct(produtoEditando);
-    toast.success(`Produto "${produtoEditando.nome}" salvo com sucesso!`);
+    saveProduct({
+      ...produtoEditando,
+      nome,
+      preco,
+    });
+    toast.success(`Produto "${nome}" salvo com sucesso!`);
     setProdutoEditando(null);
   };
 
   const handleExcluirProduto = (id: string, nome: string) => {
-    if (confirm(`Tem certeza que deseja remover "${nome}"?`)) {
+    if (confirm(`Tem certeza que deseja remover "${nome || 'este produto'}"?`)) {
       deleteProduct(id);
       toast("Produto removido");
     }
@@ -764,13 +789,14 @@ function TabProdutos() {
   };
 
   const handleNovoProduto = () => {
+    const defaultImg = (IMAGE_PRESETS && IMAGE_PRESETS.length > 0 && IMAGE_PRESETS[0]?.url) || "";
     const novo: CustomProduct = {
       id: "prod-" + Date.now().toString().slice(-6),
       nome: "Novo Item Artesanal",
       descricao: "Descrição do produto artesanal",
       preco: 30,
       categoria: "avulso",
-      imagem: IMAGE_PRESETS[0].url,
+      imagem: defaultImg,
       destaque: "",
     };
     setProdutoEditando(novo);
@@ -809,34 +835,46 @@ function TabProdutos() {
       {/* Seção de Combos */}
       <div className="space-y-3">
         <h3 className="text-sm font-extrabold uppercase tracking-wider text-amber-300">
-          Combos & Kits Degustação ({combos.length})
+          Combos & Kits Degustação ({combos?.length || 0})
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {combos.map((prod) => (
-            <CardProdutoAdmin
-              key={prod.id}
-              produto={prod}
-              onEditar={() => setProdutoEditando({ ...prod })}
-              onExcluir={() => handleExcluirProduto(prod.id, prod.nome)}
-            />
-          ))}
+          {combos && combos.length > 0 ? (
+            combos.map((prod) => (
+              <CardProdutoAdmin
+                key={prod?.id || Math.random()}
+                produto={prod}
+                onEditar={() => setProdutoEditando({ ...prod })}
+                onExcluir={() => handleExcluirProduto(prod?.id || "", prod?.nome || "")}
+              />
+            ))
+          ) : (
+            <p className="text-xs text-white/40 col-span-full py-4 text-center">
+              Nenhum combo cadastrado no momento.
+            </p>
+          )}
         </div>
       </div>
 
       {/* Seção de Avulsos */}
       <div className="space-y-3 pt-4">
         <h3 className="text-sm font-extrabold uppercase tracking-wider text-emerald-300">
-          Itens Avulsos & Empório ({avulsos.length})
+          Itens Avulsos & Empório ({avulsos?.length || 0})
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {avulsos.map((prod) => (
-            <CardProdutoAdmin
-              key={prod.id}
-              produto={prod}
-              onEditar={() => setProdutoEditando({ ...prod })}
-              onExcluir={() => handleExcluirProduto(prod.id, prod.nome)}
-            />
-          ))}
+          {avulsos && avulsos.length > 0 ? (
+            avulsos.map((prod) => (
+              <CardProdutoAdmin
+                key={prod?.id || Math.random()}
+                produto={prod}
+                onEditar={() => setProdutoEditando({ ...prod })}
+                onExcluir={() => handleExcluirProduto(prod?.id || "", prod?.nome || "")}
+              />
+            ))
+          ) : (
+            <p className="text-xs text-white/40 col-span-full py-4 text-center">
+              Nenhum item avulso cadastrado no momento.
+            </p>
+          )}
         </div>
       </div>
 
@@ -846,7 +884,7 @@ function TabProdutos() {
           <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-[#121c15] p-6 shadow-2xl space-y-4 my-8">
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
               <h3 className="text-base font-bold font-display text-white">
-                {produtoEditando.id.startsWith("prod-") ? "Adicionar Produto" : "Editar Produto"}
+                {produtoEditando?.id?.startsWith("prod-") ? "Adicionar Produto" : "Editar Produto"}
               </h3>
               <button
                 onClick={() => setProdutoEditando(null)}
@@ -862,7 +900,7 @@ function TabProdutos() {
                   <label className="block font-semibold text-white/70 mb-1">Nome do Produto:</label>
                   <input
                     type="text"
-                    value={produtoEditando.nome}
+                    value={produtoEditando.nome || ""}
                     onChange={(e) => setProdutoEditando({ ...produtoEditando, nome: e.target.value })}
                     className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-white font-bold focus:outline-hidden focus:border-amber-400"
                     required
@@ -873,7 +911,7 @@ function TabProdutos() {
                   <label className="block font-semibold text-white/70 mb-1">Descrição / Composição:</label>
                   <textarea
                     rows={2}
-                    value={produtoEditando.descricao}
+                    value={produtoEditando.descricao || ""}
                     onChange={(e) =>
                       setProdutoEditando({ ...produtoEditando, descricao: e.target.value })
                     }
@@ -887,9 +925,12 @@ function TabProdutos() {
                   <input
                     type="number"
                     step="0.5"
-                    value={produtoEditando.preco}
+                    value={produtoEditando.preco ?? ""}
                     onChange={(e) =>
-                      setProdutoEditando({ ...produtoEditando, preco: parseFloat(e.target.value) || 0 })
+                      setProdutoEditando({
+                        ...produtoEditando,
+                        preco: parseFloat(e.target.value) || 0,
+                      })
                     }
                     className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-amber-300 font-bold text-sm focus:outline-hidden focus:border-amber-400"
                     required
@@ -918,7 +959,7 @@ function TabProdutos() {
                 <div>
                   <label className="block font-semibold text-white/70 mb-1">Categoria:</label>
                   <select
-                    value={produtoEditando.categoria}
+                    value={produtoEditando.categoria || "avulso"}
                     onChange={(e) =>
                       setProdutoEditando({
                         ...produtoEditando,
@@ -950,7 +991,7 @@ function TabProdutos() {
                   Foto do Produto (Selecione um Preset ou Cole URL):
                 </label>
                 <div className="grid grid-cols-4 gap-2 mb-2">
-                  {IMAGE_PRESETS.map((preset) => (
+                  {IMAGE_PRESETS && IMAGE_PRESETS.length > 0 && IMAGE_PRESETS.map((preset) => (
                     <button
                       type="button"
                       key={preset.id}
@@ -961,7 +1002,11 @@ function TabProdutos() {
                           : "border-white/10 opacity-70 hover:opacity-100"
                       }`}
                     >
-                      <img src={preset.url} alt={preset.label} className="h-full w-full object-cover" />
+                      {preset.url ? (
+                        <img src={preset.url} alt={preset.label} className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="h-full w-full bg-white/5" />
+                      )}
                       <span className="absolute inset-x-0 bottom-0 bg-black/70 text-[8px] font-bold text-white text-center py-0.5 truncate px-1">
                         {preset.label}
                       </span>
@@ -970,7 +1015,7 @@ function TabProdutos() {
                 </div>
                 <input
                   type="text"
-                  value={produtoEditando.imagem}
+                  value={produtoEditando.imagem || ""}
                   onChange={(e) => setProdutoEditando({ ...produtoEditando, imagem: e.target.value })}
                   placeholder="URL da Imagem personalizada (https://...)"
                   className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-1.5 text-white/70 text-[11px] focus:outline-hidden focus:border-amber-400"
@@ -1009,34 +1054,55 @@ function CardProdutoAdmin({
   onEditar: () => void;
   onExcluir: () => void;
 }) {
+  if (!produto) return null;
+
+  const nome = produto.nome || "Item Artesanal";
+  const descricao = produto.descricao || "";
+  const preco = typeof produto.preco === "number" && !isNaN(produto.preco) ? produto.preco : 0;
+  const precoOriginal =
+    typeof produto.precoOriginal === "number" && !isNaN(produto.precoOriginal)
+      ? produto.precoOriginal
+      : undefined;
+  const destaque = produto.destaque ? String(produto.destaque) : "";
+  const imagem = produto.imagem || "";
+
   return (
     <div className="flex gap-3 rounded-2xl border border-white/10 bg-[#121c15] p-3.5 transition-all hover:border-white/20">
-      <img
-        src={produto.imagem}
-        alt={produto.nome}
-        className="h-20 w-20 rounded-xl object-cover border border-white/10 shrink-0"
-      />
+      {imagem ? (
+        <img
+          src={imagem}
+          alt={nome}
+          className="h-20 w-20 rounded-xl object-cover border border-white/10 shrink-0 bg-[#0e1710]"
+          onError={(e) => {
+            (e.currentTarget as HTMLImageElement).style.opacity = "0.3";
+          }}
+        />
+      ) : (
+        <div className="h-20 w-20 rounded-xl bg-white/5 border border-white/10 shrink-0 grid place-items-center text-white/30 text-[10px]">
+          Sem foto
+        </div>
+      )}
       <div className="flex-1 flex flex-col justify-between min-w-0">
         <div>
           <div className="flex items-start justify-between gap-1">
-            <h4 className="font-bold text-white text-xs truncate">{produto.nome}</h4>
-            {produto.destaque && (
-              <span className="rounded-full bg-amber-500/20 border border-amber-500/30 px-1.5 py-0.2 text-[9px] font-bold text-amber-300 shrink-0">
-                {produto.destaque}
+            <h4 className="font-bold text-white text-xs truncate">{nome}</h4>
+            {destaque && (
+              <span className="rounded-full bg-amber-500/20 border border-amber-500/30 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 shrink-0">
+                {destaque}
               </span>
             )}
           </div>
-          <p className="text-[11px] text-white/50 line-clamp-2 mt-0.5">{produto.descricao}</p>
+          <p className="text-[11px] text-white/50 line-clamp-2 mt-0.5">{descricao}</p>
         </div>
 
         <div className="flex items-center justify-between pt-2 border-t border-white/5 mt-1">
           <div className="flex items-baseline gap-1.5">
             <span className="text-sm font-black text-amber-300 font-display">
-              {brl(produto.preco)}
+              {brl(preco)}
             </span>
-            {produto.precoOriginal && (
+            {precoOriginal !== undefined && precoOriginal > 0 && (
               <span className="text-[10px] text-white/40 line-through">
-                {brl(produto.precoOriginal)}
+                {brl(precoOriginal)}
               </span>
             )}
           </div>

@@ -1,4 +1,4 @@
-﻿import {
+import {
   combos as defaultCombos,
   avulsos as defaultAvulsos,
   type Produto,
@@ -22,18 +22,27 @@ export const IMAGE_PRESETS = [
   { id: "tucupi", label: "Tucupi Amarelo", url: defaultAvulsos[7]?.imagem || "" },
 ];
 
-function getDefaults(): { combos: CustomProduct[]; avulsos: CustomProduct[] } {
+function sanitizeProduct(p: any, defaultCat: "combo" | "avulso"): CustomProduct {
   return {
-    combos: defaultCombos.map((c) => ({
-      ...c,
-      categoria: "combo" as const,
-      ativo: true,
-    })),
-    avulsos: defaultAvulsos.map((a) => ({
-      ...a,
-      categoria: "avulso" as const,
-      ativo: true,
-    })),
+    id: String(p?.id || "prod-" + Math.random().toString(36).substring(2, 8)),
+    nome: String(p?.nome || "Item Artesanal"),
+    descricao: String(p?.descricao || ""),
+    preco: typeof p?.preco === "number" && !isNaN(p.preco) ? p.preco : (Number(p?.preco) || 0),
+    precoOriginal: typeof p?.precoOriginal === "number" && !isNaN(p.precoOriginal) ? p.precoOriginal : (p?.precoOriginal ? Number(p.precoOriginal) : undefined),
+    economia: typeof p?.economia === "number" && !isNaN(p.economia) ? p.economia : undefined,
+    imagem: p?.imagem || IMAGE_PRESETS[0]?.url || "",
+    destaque: p?.destaque ? String(p.destaque) : "",
+    categoria: p?.categoria === "combo" || p?.categoria === "avulso" ? p.categoria : defaultCat,
+    ativo: p?.ativo !== false,
+  };
+}
+
+function getDefaults(): { combos: CustomProduct[]; avulsos: CustomProduct[] } {
+  const cList = Array.isArray(defaultCombos) ? defaultCombos : [];
+  const aList = Array.isArray(defaultAvulsos) ? defaultAvulsos : [];
+  return {
+    combos: cList.map((c) => sanitizeProduct(c, "combo")),
+    avulsos: aList.map((a) => sanitizeProduct(a, "avulso")),
   };
 }
 
@@ -42,20 +51,24 @@ export function getCustomProducts(): {
   avulsos: CustomProduct[];
   todos: CustomProduct[];
 } {
+  const def = getDefaults();
   if (typeof window === "undefined") {
-    const d = getDefaults();
-    return { combos: d.combos, avulsos: d.avulsos, todos: [...d.combos, ...d.avulsos] };
+    return { combos: def.combos, avulsos: def.avulsos, todos: [...def.combos, ...def.avulsos] };
   }
 
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      const d = getDefaults();
-      return { combos: d.combos, avulsos: d.avulsos, todos: [...d.combos, ...d.avulsos] };
+      return { combos: def.combos, avulsos: def.avulsos, todos: [...def.combos, ...def.avulsos] };
     }
     const data = JSON.parse(raw);
-    const combos = Array.isArray(data.combos) ? data.combos : getDefaults().combos;
-    const avulsos = Array.isArray(data.avulsos) ? data.avulsos : getDefaults().avulsos;
+    const combos = Array.isArray(data?.combos)
+      ? data.combos.map((c: any) => sanitizeProduct(c, "combo"))
+      : def.combos;
+    const avulsos = Array.isArray(data?.avulsos)
+      ? data.avulsos.map((a: any) => sanitizeProduct(a, "avulso"))
+      : def.avulsos;
+
     return {
       combos,
       avulsos,
@@ -63,8 +76,7 @@ export function getCustomProducts(): {
     };
   } catch (e) {
     console.error("Erro ao carregar produtos:", e);
-    const d = getDefaults();
-    return { combos: d.combos, avulsos: d.avulsos, todos: [...d.combos, ...d.avulsos] };
+    return { combos: def.combos, avulsos: def.avulsos, todos: [...def.combos, ...def.avulsos] };
   }
 }
 
