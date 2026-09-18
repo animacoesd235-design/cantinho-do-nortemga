@@ -806,6 +806,7 @@ function TabProdutos() {
         setProdutoEditando({
           ...produtoEditando,
           imagem: base64,
+          image: base64,
         });
       }
       toast.success("Foto carregada com sucesso!", { id: "upload-img" });
@@ -842,10 +843,13 @@ function TabProdutos() {
       setNovoNomeCategoria("");
     }
 
+    const imgFinal = (produtoEditando as any).image || produtoEditando.imagem || "";
     saveProduct({
       ...produtoEditando,
       nome,
       preco,
+      imagem: imgFinal,
+      image: imgFinal,
       categoria: categoriaFinal,
     });
     // Limpar cache legado de cdn-midia se houver, garantindo que a nova foto seja soberana
@@ -882,6 +886,7 @@ function TabProdutos() {
       preco: 30,
       categoria: defaultCat,
       imagem: defaultImg,
+      image: defaultImg,
       destaque: "",
     };
     setModoNovaCategoria(false);
@@ -1296,10 +1301,14 @@ function TabProdutos() {
                             type="button"
                             key={preset.id}
                             onClick={() =>
-                              setProdutoEditando({ ...produtoEditando, imagem: preset.url })
+                              setProdutoEditando({
+                                ...produtoEditando,
+                                imagem: preset.url,
+                                image: preset.url,
+                              })
                             }
                             className={`group relative rounded-xl overflow-hidden border-2 aspect-square transition-all ${
-                              produtoEditando.imagem === preset.url
+                              (produtoEditando.image || produtoEditando.imagem) === preset.url
                                 ? "border-amber-400 ring-2 ring-amber-400/40"
                                 : "border-white/10 opacity-70 hover:opacity-100"
                             }`}
@@ -1327,9 +1336,13 @@ function TabProdutos() {
                   <div className="space-y-1.5">
                     <input
                       type="text"
-                      value={produtoEditando.imagem || ""}
+                      value={produtoEditando.image || produtoEditando.imagem || ""}
                       onChange={(e) =>
-                        setProdutoEditando({ ...produtoEditando, imagem: e.target.value })
+                        setProdutoEditando({
+                          ...produtoEditando,
+                          imagem: e.target.value,
+                          image: e.target.value,
+                        })
                       }
                       placeholder="Cole a URL da imagem (ex: https://site.com/foto.jpg)"
                       className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-white text-xs focus:outline-hidden focus:border-amber-400"

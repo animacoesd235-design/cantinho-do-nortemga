@@ -175,7 +175,10 @@ export function getCustomProducts(): {
   }
 
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    let raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      raw = localStorage.getItem("cdn_produtos_v1") || localStorage.getItem("cdn_custom_products_v1");
+    }
     if (!raw) {
       return def;
     }
@@ -213,20 +216,24 @@ export function saveAllProducts(data: {
 }): void {
   if (typeof window === "undefined") return;
   try {
-    const todos =
+    const rawTodos =
       data.todos ||
       [...data.combos, ...data.avulsos].filter(
         (v, i, a) => a.findIndex((t) => t.id === v.id) === i
       );
+    const todos = rawTodos.map((p) => sanitizeProduct(p, p.categoria));
 
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        combos: data.combos,
-        avulsos: data.avulsos,
+        combos: data.combos.map((c) => sanitizeProduct(c, "combos")),
+        avulsos: data.avulsos.map((a) => sanitizeProduct(a, "avulsos")),
         todos,
       })
     );
+    try {
+      localStorage.setItem("cdn_sync_timestamp", String(Date.now()));
+    } catch {}
     window.dispatchEvent(new CustomEvent("cdn:products_updated"));
   } catch (e) {
     console.error("Erro ao salvar produtos:", e);
@@ -235,13 +242,14 @@ export function saveAllProducts(data: {
 
 export function saveProduct(produto: CustomProduct): void {
   const current = getCustomProducts();
+  const produtoSanitizado = sanitizeProduct(produto, produto.categoria);
   let todos = [...current.todos];
-  const idx = todos.findIndex((p) => p.id === produto.id);
+  const idx = todos.findIndex((p) => p.id === produtoSanitizado.id);
 
   if (idx >= 0) {
-    todos[idx] = produto;
+    todos[idx] = produtoSanitizado;
   } else {
-    todos.push(produto);
+    todos.push(produtoSanitizado);
   }
 
   const combos = todos.filter((p) => p.categoria === "combo" || p.categoria === "combos");

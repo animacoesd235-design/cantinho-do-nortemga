@@ -99,19 +99,32 @@ function Cardapio() {
   const [storeStatus, setStoreStatus] = useState<StoreStatusResult>(() => checkStoreOpenStatus());
 
   useEffect(() => {
-    const cleanup = onProductsUpdate(() => {
-      setProdutosData(getCustomProducts());
-    });
-    return cleanup;
-  }, []);
+    const sincronizarTudo = () => {
+      try {
+        const prods = getCustomProducts();
+        setProdutosData(prods);
+        const cats = getCategories();
+        setCategorias(cats);
+      } catch (e) {
+        console.error("Erro ao sincronizar cardápio:", e);
+      }
+    };
 
-  useEffect(() => {
-    const cleanup = onCategoriesUpdate(() => {
-      const cats = getCategories();
-      setCategorias(cats);
-      setAba((atual) => (cats.some((c) => c.id === atual) ? atual : cats[0]?.id || "combos"));
-    });
-    return cleanup;
+    // Sincroniza imediatamente no cliente para puxar as imagens salvas no admin
+    sincronizarTudo();
+
+    const cleanupProds = onProductsUpdate(sincronizarTudo);
+    const cleanupCats = onCategoriesUpdate(sincronizarTudo);
+
+    window.addEventListener("focus", sincronizarTudo);
+    window.addEventListener("visibilitychange", sincronizarTudo);
+
+    return () => {
+      cleanupProds();
+      cleanupCats();
+      window.removeEventListener("focus", sincronizarTudo);
+      window.removeEventListener("visibilitychange", sincronizarTudo);
+    };
   }, []);
 
   useEffect(() => {
@@ -280,8 +293,9 @@ function Cardapio() {
               ) : (
                 <div className="grid gap-5 sm:grid-cols-2">
                   {prods.map((p, i) => (
-                    <CardProduto
+                    <ProductCard
                       key={p.id}
+                      product={p}
                       produto={p}
                       priority={i === 0}
                       isCombo={isComboSection}
@@ -485,42 +499,47 @@ function HeroSection() {
   );
 }
 
-function CardProduto({
+export function ProductCard({
   produto,
+  product,
   onAdd,
   onAbrirReceitas,
   priority,
   isCombo,
 }: {
-  produto: Produto;
+  produto?: Produto;
+  product?: Produto;
   onAdd: () => void;
   onAbrirReceitas?: () => void;
   priority?: boolean | undefined;
   isCombo?: boolean;
 }) {
+  const item = product || produto!;
+  if (!item) return null;
+
   const economia =
-    produto.economia ??
-    (produto.precoOriginal ? produto.precoOriginal - produto.preco : 0);
+    item.economia ??
+    (item.precoOriginal ? item.precoOriginal - item.preco : 0);
 
   const temReceita =
     isCombo ||
-    produto.id === "acai-litro" ||
-    produto.nome.toLowerCase().includes("açaí") ||
-    produto.nome.toLowerCase().includes("acai");
+    item.id === "acai-litro" ||
+    item.nome.toLowerCase().includes("açaí") ||
+    item.nome.toLowerCase().includes("acai");
 
-  // Puxa dinamicamente a propriedade da imagem cadastrada no admin (product.image ou product.imagem)
+  // Puxa obrigatoriamente e dinamicamente a propriedade da imagem (product.image ou product.imagem) cadastrada no admin
   const imagemSrc =
-    (produto as any).image ||
-    produto.imagem ||
-    (produto as any).imageUrl ||
-    (produto as any).foto ||
+    (item as any).image ||
+    item.imagem ||
+    (item as any).imageUrl ||
+    (item as any).foto ||
     "";
 
   return (
     <article className="group relative flex flex-col justify-between overflow-hidden rounded-3xl bg-card border border-border/80 shadow-[var(--shadow-card)] hover:shadow-2xl hover:border-gold/50 transition-all duration-300">
       <div>
         <div className="relative">
-          {/* Mídia do Produto com tag <img> puxando dinamicamente a foto do admin */}
+          {/* Mídia do Produto com tag <img> vinculada à foto específica cadastrada no admin */}
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-3xl bg-sand-deep/40 flex items-center justify-center">
             {imagemSrc?.startsWith("data:video") || imagemSrc?.endsWith(".mp4") || imagemSrc?.endsWith(".webm") ? (
               <video
@@ -535,7 +554,7 @@ function CardProduto({
             ) : (
               <img
                 src={imagemSrc}
-                alt={produto.nome}
+                alt={item.nome}
                 width={1024}
                 height={768}
                 loading={priority ? "eager" : "lazy"}
@@ -548,13 +567,13 @@ function CardProduto({
             )}
           </div>
           {/* Container Único Flexível com os Selos Empilhados Verticalmente */}
-          {(produto.destaque || economia > 0) && (
+          {(item.destaque || economia > 0) && (
             <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-1.5 max-w-[calc(100%-4.5rem)] pointer-events-none">
               {/* Selo 1: Destaque na Linha Superior */}
-              {produto.destaque && (
+              {item.destaque && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400 text-amber-950 px-2.5 sm:px-3 py-1 text-[10.5px] sm:text-[11px] font-black uppercase tracking-wider shadow-md border border-amber-300/80 backdrop-blur-md shrink-0">
                   <Sparkles className="h-3 w-3 text-amber-950 shrink-0" />
-                  <span className="truncate">{produto.destaque}</span>
+                  <span className="truncate">{item.destaque}</span>
                 </span>
               )}
 
@@ -585,10 +604,10 @@ function CardProduto({
         </div>
         <div className="p-4 sm:p-5">
           <h3 className="text-lg font-bold leading-snug text-forest group-hover:text-acai transition-colors font-display">
-            {produto.nome}
+            {item.nome}
           </h3>
           <p className="mt-1.5 text-xs sm:text-sm leading-relaxed text-muted-foreground line-clamp-3">
-            {produto.descricao}
+            {item.descricao}
           </p>
         </div>
       </div>
@@ -596,11 +615,11 @@ function CardProduto({
       <div className="p-4 sm:p-5 pt-0 mt-auto">
         <div className="flex items-center justify-between gap-3 border-t border-border/60 pt-3.5">
           <div className="flex flex-col">
-            {produto.precoOriginal ? (
+            {item.precoOriginal ? (
               <>
                 <div className="flex items-center gap-1.5 text-xs">
                   <span className="text-muted-foreground line-through font-medium">
-                    De {brl(produto.precoOriginal)}
+                    De {brl(item.precoOriginal)}
                   </span>
                   <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 px-1.5 py-0.5 rounded-md">
                     Economia de {brl(economia)}
@@ -609,7 +628,7 @@ function CardProduto({
                 <div className="flex items-baseline gap-1 text-acai">
                   <span className="text-xs font-bold text-acai/70">Por R$</span>
                   <span className="text-2xl font-black tracking-tight font-display">
-                    {produto.preco.toFixed(2).replace(".", ",")}
+                    {item.preco.toFixed(2).replace(".", ",")}
                   </span>
                 </div>
               </>
@@ -621,7 +640,7 @@ function CardProduto({
                 <div className="flex items-baseline gap-1 text-acai">
                   <span className="text-xs font-bold text-acai/70">R$</span>
                   <span className="text-2xl font-black tracking-tight font-display">
-                    {produto.preco.toFixed(2).replace(".", ",")}
+                    {item.preco.toFixed(2).replace(".", ",")}
                   </span>
                 </div>
               </>
@@ -638,6 +657,8 @@ function CardProduto({
     </article>
   );
 }
+
+export const CardProduto = ProductCard;
 
 function Footer({
   onAbrirRastreio,
