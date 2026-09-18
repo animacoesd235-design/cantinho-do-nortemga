@@ -207,11 +207,8 @@ function Cardapio() {
 
   return (
     <div className="min-h-screen bg-gradient-sand pb-36">
-      {/* Banner de Urgência e Escassez (Topo da Página) */}
-      <BannerUrgencia />
-
-      {/* Banner Amigável quando Fora de Horário ou em Pausa Emergencial */}
-      {!storeStatus.isOpen && <BannerLojaFechada status={storeStatus} />}
+      {/* Topo Absoluto: Selo de Status em Pílula Sutil e Aviso de Lote Diário */}
+      <BarraSuperiorTopo status={storeStatus} />
 
       {/* Cabeçalho Clean e Sofisticado */}
       <HeroSection />
@@ -351,80 +348,85 @@ function Cardapio() {
   );
 }
 
-function BannerUrgencia() {
-  return (
-    <aside
-      role="region"
-      aria-label="Aviso de lote diário"
-      className="relative z-40 overflow-hidden bg-[#080d0a] text-amber-200 border-b border-amber-500/20 px-3 py-1.5 shadow-2xs text-center"
-    >
-      <div className="relative mx-auto flex max-w-5xl items-center justify-center gap-2 text-[11px] sm:text-xs">
-        <span className="relative flex h-1.5 w-1.5 shrink-0">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400" />
-        </span>
-
-        <p className="font-medium text-white/90 leading-tight">
-          <strong className="font-bold text-amber-300">
-            🌿 Lote artesanal diário:
-          </strong>{" "}
-          Restam poucas garrafas de açaí para entrega hoje em Maringá!
-        </p>
-
-        <span className="hidden md:inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] uppercase font-black tracking-wider text-amber-300 shrink-0">
-          Últimas Garrafas
-        </span>
-      </div>
-    </aside>
-  );
-}
-
-function BannerLojaFechada({ status }: { status: StoreStatusResult }) {
+function BarraSuperiorTopo({ status }: { status: StoreStatusResult }) {
   const isPausa = status.reason === "manual_pause";
-  const horarioTexto = status.badgeText.toLowerCase().includes("abre")
-    ? status.badgeText
-    : status.nextSchedule
-    ? `Abre ${status.nextSchedule}`
-    : "Abre às 13:00";
+
+  const textoFechado = isPausa
+    ? "🔴 Fechado / Pausado"
+    : status.badgeText.toLowerCase().includes("abre")
+    ? `🔴 Fechado • ${status.badgeText}`
+    : status.badgeText.toLowerCase().includes("fechado")
+    ? `🔴 ${status.badgeText}`
+    : `🔴 Fechado • ${status.badgeText}`;
 
   return (
     <aside
       role="region"
-      aria-label="Aviso de atendimento"
-      className="relative z-30 bg-[#0c140e] text-white border-b border-amber-500/30 px-3.5 py-1.5 shadow-sm"
+      aria-label="Status de funcionamento e aviso de lote diário"
+      className="relative z-40 overflow-hidden bg-[#070c09] text-white border-b border-white/10 px-3 py-1.5 shadow-2xs"
     >
-      <div className="mx-auto max-w-4xl flex items-center justify-between gap-2 text-xs">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="relative flex h-2 w-2 shrink-0">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
-          </span>
-
-          <p className="truncate text-white/90 text-[11px] sm:text-xs">
-            <strong className="font-bold text-amber-300">
-              {isPausa ? "⏸️ Pausa Estratégica" : `⏰ ${horarioTexto}`}:
-            </strong>{" "}
-            <span className="hidden sm:inline">
-              {isPausa
-                ? (status.bannerMessage || "Atendimento em pausa momentânea. Cardápio liberado para consulta.")
-                : "Cardápio liberado para você montar seu pedido com antecedência!"}
+      <div className="relative mx-auto flex max-w-5xl items-center justify-between gap-2.5 text-xs">
+        {/* Selo de Status em Pílula Sutil, Compacta e Dinâmica */}
+        <div className="shrink-0">
+          {status.isOpen ? (
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-300 shadow-2xs backdrop-blur-md transition-all tracking-wide"
+              title="Cantinho do Norte está aberto e entregando em Maringá"
+            >
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+              <span>🟢 Aberto agora</span>
+              {status.nextSchedule && (
+                <span className="hidden md:inline text-emerald-400/70 font-normal text-[10px]">
+                  • {status.nextSchedule}
+                </span>
+              )}
             </span>
-            <span className="sm:hidden">
-              {isPausa ? "Cardápio aberto para consulta." : "Cardápio aberto para pedidos!"}
-            </span>
-          </p>
+          ) : (
+            <a
+              href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(
+                isPausa
+                  ? "Olá! Vi no cardápio que a loja está em pausa no momento e gostaria de saber sobre pedidos."
+                  : "Olá! Gostaria de tirar uma dúvida ou agendar um pedido com antecedência no Cantinho do Norte."
+              )}`}
+              target="_blank"
+              rel="noreferrer"
+              title="Atendimento pausado ou fechado no momento. Clique para falar no WhatsApp."
+              className="tap inline-flex items-center gap-1.5 rounded-full bg-rose-950/80 hover:bg-rose-900/80 border border-rose-500/40 px-2.5 py-0.5 text-[11px] font-extrabold text-rose-300 shadow-2xs backdrop-blur-md transition-all tracking-wide"
+            >
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-400" />
+              </span>
+              <span>{textoFechado}</span>
+              <span className="hidden sm:inline text-rose-300/70 font-normal text-[10px]">
+                (WhatsApp 💬)
+              </span>
+            </a>
+          )}
         </div>
 
-        <a
-          href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent(
-            "Olá! Estou no cardápio do Cantinho do Norte e gostaria de tirar uma dúvida ou agendar um pedido."
-          )}`}
-          target="_blank"
-          rel="noreferrer"
-          className="tap shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 text-[11px] font-bold transition-all"
-        >
-          <span>💬 WhatsApp</span>
-        </a>
+        {/* Lote Diário / Gatilho de Escassez Compacto */}
+        <div className="flex items-center gap-1.5 text-[11px] text-amber-200/90 truncate justify-end">
+          <span className="relative flex h-1.5 w-1.5 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400" />
+          </span>
+          <p className="truncate font-medium text-white/90 text-[11px] sm:text-xs">
+            <strong className="font-bold text-amber-300">
+              🌿 Lote artesanal:
+            </strong>{" "}
+            <span className="hidden sm:inline">
+              Restam poucas garrafas para entrega hoje em Maringá!
+            </span>
+            <span className="sm:hidden">Poucas garrafas hoje</span>
+          </p>
+          <span className="hidden md:inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] uppercase font-black tracking-wider text-amber-300 shrink-0">
+            Últimas Garrafas
+          </span>
+        </div>
       </div>
     </aside>
   );
