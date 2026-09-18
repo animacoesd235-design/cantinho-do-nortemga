@@ -363,14 +363,14 @@ function BarraSuperiorTopo({ status }: { status: StoreStatusResult }) {
     <aside
       role="region"
       aria-label="Status de funcionamento e aviso de lote diário"
-      className="relative z-40 bg-[#070c09] text-white border-b border-white/10 px-3 py-2 sm:py-1.5 shadow-2xs"
+      className="relative z-40 bg-[#070c09] text-white border-b border-white/10 px-4 py-2 sm:py-1.5 shadow-2xs"
     >
-      <div className="relative mx-auto flex max-w-5xl flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-3 text-xs">
+      <div className="mx-auto flex max-w-4xl flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3.5 text-xs text-center">
         {/* Selo de Status em Pílula Sutil, Compacta e Dinâmica */}
         <div className="shrink-0 flex items-center justify-center">
           {status.isOpen ? (
             <span
-              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-300 shadow-2xs backdrop-blur-md transition-all tracking-wide"
+              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 px-3 py-0.5 text-[11px] font-extrabold text-emerald-300 shadow-2xs backdrop-blur-md transition-all tracking-wide"
               title="Cantinho do Norte está aberto e entregando em Maringá"
             >
               <span className="relative flex h-2 w-2 shrink-0">
@@ -379,7 +379,7 @@ function BarraSuperiorTopo({ status }: { status: StoreStatusResult }) {
               </span>
               <span>🟢 Aberto agora</span>
               {status.nextSchedule && (
-                <span className="hidden md:inline text-emerald-400/70 font-normal text-[10px]">
+                <span className="hidden lg:inline text-emerald-400/70 font-normal text-[10px]">
                   • {status.nextSchedule}
                 </span>
               )}
@@ -394,22 +394,25 @@ function BarraSuperiorTopo({ status }: { status: StoreStatusResult }) {
               target="_blank"
               rel="noreferrer"
               title="Atendimento pausado ou fechado no momento. Clique para falar no WhatsApp."
-              className="tap inline-flex items-center gap-1.5 rounded-full bg-rose-950/80 hover:bg-rose-900/80 border border-rose-500/40 px-2.5 py-0.5 text-[11px] font-extrabold text-rose-300 shadow-2xs backdrop-blur-md transition-all tracking-wide"
+              className="tap inline-flex items-center gap-1.5 rounded-full bg-rose-950/80 hover:bg-rose-900/80 border border-rose-500/40 px-3 py-0.5 text-[11px] font-extrabold text-rose-300 shadow-2xs backdrop-blur-md transition-all tracking-wide"
             >
               <span className="relative flex h-2 w-2 shrink-0">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-400" />
               </span>
               <span>{textoFechado}</span>
-              <span className="hidden sm:inline text-rose-300/70 font-normal text-[10px]">
+              <span className="text-rose-300/70 font-normal text-[10px]">
                 (WhatsApp 💬)
               </span>
             </a>
           )}
         </div>
 
-        {/* Lote Diário / Aviso Completo sem Cortes */}
-        <div className="flex items-center justify-center sm:justify-end gap-1.5 text-[11px] sm:text-xs text-amber-200/90 text-center sm:text-right">
+        {/* Separador visual sutil no desktop */}
+        <span className="hidden sm:inline-block h-3 w-px bg-white/20" aria-hidden="true" />
+
+        {/* Lote Diário / Aviso Completo Centralizado */}
+        <div className="flex items-center justify-center gap-1.5 text-[11px] sm:text-xs text-amber-200/90 text-center">
           <span className="relative flex h-1.5 w-1.5 shrink-0 hidden sm:inline-flex">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400" />
@@ -420,7 +423,7 @@ function BarraSuperiorTopo({ status }: { status: StoreStatusResult }) {
             </strong>{" "}
             Restam poucas garrafas para entrega hoje em Maringá!
           </p>
-          <span className="hidden lg:inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] uppercase font-black tracking-wider text-amber-300 shrink-0">
+          <span className="hidden md:inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] uppercase font-black tracking-wider text-amber-300 shrink-0">
             Últimas Garrafas
           </span>
         </div>
