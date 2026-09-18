@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { Check, Plus, Sparkles, X } from "lucide-react";
 import { brl, type Produto } from "@/lib/menu-data";
 import { UPSELL_EXTRAS, type ExtraItem } from "@/lib/orders";
@@ -65,7 +65,7 @@ export function ModalUpsell({
             <img
               src={produto.imagem}
               alt={produto.nome}
-              className="h-14 w-14 rounded-2xl object-cover border border-border/80 shrink-0"
+              className="h-14 w-14 rounded-2xl object-contain p-1 bg-sand-deep/40 border border-border/80 shrink-0"
             />
             <div className="min-w-0">
               <p className="text-sm font-bold text-forest truncate font-display">

@@ -74,7 +74,7 @@ export function ProductMedia({
   };
 
   return (
-    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-3xl bg-sand-deep">
+    <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-3xl bg-sand-deep/40 flex items-center justify-center">
       {media?.tipo === "video" ? (
         <video
           src={media.data}
@@ -83,7 +83,7 @@ export function ProductMedia({
           muted
           playsInline
           preload="metadata"
-          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+          className="h-full w-full object-contain p-2 transition-transform duration-500 ease-out group-hover:scale-105"
         />
       ) : (
         <img
@@ -93,7 +93,7 @@ export function ProductMedia({
           height={768}
           loading={priority ? "eager" : "lazy"}
           decoding="async"
-          className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-105"
+          className="h-full w-full object-contain p-2 transition-transform duration-500 ease-out group-hover:scale-105"
         />
       )}
 

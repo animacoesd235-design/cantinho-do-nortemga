@@ -1115,7 +1115,7 @@ function TabProdutos() {
                     <img
                       src={produtoEditando.imagem}
                       alt="Pré-visualização"
-                      className="h-20 w-20 rounded-xl object-cover border border-amber-400/40 bg-black/40 shrink-0"
+                      className="h-20 w-20 rounded-xl object-contain p-1 border border-amber-400/40 bg-black/40 shrink-0"
                     />
                   ) : (
                     <div className="h-20 w-20 rounded-xl bg-black/40 border border-white/10 grid place-items-center text-white/40 text-[10px] shrink-0">
@@ -1278,7 +1278,7 @@ function CardProdutoAdmin({
         <img
           src={imagem}
           alt={nome}
-          className="h-20 w-20 rounded-xl object-cover border border-white/10 shrink-0 bg-[#0e1710]"
+          className="h-20 w-20 rounded-xl object-contain p-1 border border-white/10 shrink-0 bg-[#0e1710]"
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).style.opacity = "0.3";
           }}
