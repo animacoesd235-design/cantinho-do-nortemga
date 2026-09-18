@@ -144,6 +144,36 @@ export function ModalRastreio({ orderId, onClose }: ModalRastreioProps) {
         </div>
 
         <div className="max-h-[75vh] overflow-y-auto p-4 sm:p-6 space-y-6">
+          {/* MENSAGEM PERSONALIZADA DE AGRADECIMENTO PÓS-COMPRA */}
+          <div className="relative overflow-hidden rounded-3xl border border-gold/40 bg-gradient-to-br from-amber-500/10 via-background to-forest/10 p-4 sm:p-5 shadow-xs">
+            <div className="flex items-start gap-3 sm:gap-4">
+              <span className="grid h-10 w-10 sm:h-11 sm:w-11 shrink-0 place-items-center rounded-2xl bg-gold/20 text-gold-foreground dark:text-amber-300 border border-gold/40 shadow-xs">
+                <Sparkles className="h-5 w-5 text-amber-600 dark:text-amber-400 animate-pulse" />
+              </span>
+              <div className="space-y-1.5 min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h4 className="text-sm sm:text-base font-bold text-forest dark:text-amber-200 font-display leading-tight">
+                    Muito obrigado pelo seu pedido{pedido.cliente?.nome ? `, ${pedido.cliente.nome.split(" ")[0]}` : ""}! 🌿
+                  </h4>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-forest/15 text-forest dark:text-emerald-300 border border-forest/20 px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider">
+                    Feito no Capricho
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-foreground/90 leading-relaxed font-sans">
+                  É um verdadeiro prazer ter você como nosso cliente. Preparamos tudo com muito carinho e capricho para você saborear o autêntico açaí e as delícias do Norte no conforto da sua casa!
+                </p>
+                <div className="flex items-center gap-3 pt-1 text-[11px] text-muted-foreground font-medium flex-wrap">
+                  <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    Kits lacrados com segurança
+                  </span>
+                  <span>•</span>
+                  <span>100% Delivery em Maringá</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* ALERTA INTELIGENTE MOTOBOY A CAMINHO (ATIVO QUANDO STATUS = PRONTO) */}
           {pedido.status === "pronto" && (
             <div className="rounded-2xl border-2 border-amber-500/80 bg-amber-500/15 p-4 sm:p-5 shadow-lg animate-in zoom-in-95 space-y-3">

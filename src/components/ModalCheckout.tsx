@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import {
   Bike,
   Check,
@@ -173,6 +173,9 @@ export function ModalCheckout({
       `*TOTAL: ${brl(totalGeral)}*`,
       "",
       `*Forma de Pagamento:* ${textoPagamento}`,
+      "",
+      `✨ *MUITO OBRIGADO PELO SEU PEDIDO!*`,
+      `É um verdadeiro prazer ter você como nosso cliente. Preparamos tudo com muito carinho e capricho para você saborear a verdadeira essência da Amazônia na sua casa! 🌿🥥`,
       "",
       `_Pedido enviado automaticamente para a cozinha!_`,
     ].join("\n");

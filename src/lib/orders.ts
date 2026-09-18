@@ -223,11 +223,11 @@ export function buildWhatsAppStatusUrl(
 
   let msg = "";
   if (type === "etapa1_confirmacao") {
-    msg = `🌿 Olá, ${order.cliente.nome}! Recebemos seu pedido ${order.id} no Cantinho do Norte. Separando kits para entrega em ${enderecoFormatado}. Pagamento via ${metodoFormatado}. Avisaremos quando iniciar o preparo! 🛵✨`;
+    msg = `🌿 Olá, ${order.cliente.nome}! Muito obrigado pelo seu pedido ${order.id} no Cantinho do Norte. É um verdadeiro prazer ter você como nosso cliente! Estamos preparando tudo com muito carinho e capricho para entrega em ${enderecoFormatado}. Pagamento via ${metodoFormatado}. Avisaremos quando iniciar o preparo! 🛵✨`;
   } else if (type === "etapa2_preparo") {
     msg = `👨‍🍳 Oi, ${order.cliente.nome}! Seu pedido ${order.id} entrou em preparo na cozinha. Nossos kits são lacrados para você montar em casa com o verdadeiro sabor do Norte. Logo vai para ${enderecoFormatado}! 🌿`;
   } else if (type === "etapa3_saiu_entrega") {
-    msg = `🚨 Olá, ${order.cliente.nome}! Seu pedido do Cantinho do Norte acabou de sair para entrega e está a caminho de ${enderecoFormatado}. Nosso motoboy chega em instantes! Por favor, deixe o celular por perto e fique atento ao interfone ou portão para receber nossos kits fresquinhos sem espera. 🛵💨`;
+    msg = `🚨 Olá, ${order.cliente.nome}! Seu pedido do Cantinho do Norte acabou de sair para entrega e está a caminho de ${enderecoFormatado}. Nosso motoboy chega em instantes! Por favor, deixe o celular por perto e fique atento ao interfone ou portão para receber seus kits fresquinhos. Muito obrigado pela preferência e bom apetite! 🛵💨🌿`;
   }
 
   return `https://wa.me/${numDestino}?text=${encodeURIComponent(msg)}`;

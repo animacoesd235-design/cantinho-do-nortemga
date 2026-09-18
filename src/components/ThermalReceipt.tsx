@@ -1,4 +1,4 @@
-﻿import { brl } from "@/lib/menu-data";
+import { brl } from "@/lib/menu-data";
 import type { Order } from "@/lib/orders";
 
 interface ThermalReceiptProps {
@@ -130,9 +130,9 @@ export function ThermalReceipt({ order }: ThermalReceiptProps) {
 
       {/* Rodapé da Comanda */}
       <div className="pt-2 text-center text-[10px] space-y-0.5">
-        <p className="font-bold">🌿 MONTE EM CASA: KITS LACRADOS</p>
-        <p className="italic">Garantia de crocância e sabor autêntico</p>
-        <p className="font-black pt-1">Obrigado pela preferência!</p>
+        <p className="font-bold">🌿 SABORES QUE VÊM DA NOSSA TERRA</p>
+        <p className="italic">Preparamos tudo com muito carinho e capricho!</p>
+        <p className="font-black pt-0.5">Muito obrigado pela preferência!</p>
         <div className="text-[9px] text-gray-500 pt-1">
           Impresso em: {new Date().toLocaleString("pt-BR")}
         </div>
