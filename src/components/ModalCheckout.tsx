@@ -152,6 +152,8 @@ export function ModalCheckout({
         ? "💳 Cartão na Entrega (Levar maquininha)"
         : `💵 Dinheiro na Entrega ${trocoPara ? `(Troco p/ R$ ${trocoPara})` : ""}`;
 
+    const primeiroNome = novoPedido.cliente.nome.trim().split(" ")[0] || "Cliente";
+
     const msg = [
       `*PEDIDO ${novoPedido.id} — CANTINHO DO NORTE*`,
       `🛵 *Atendimento 100% Delivery (Maringá/PR)*`,
@@ -174,8 +176,8 @@ export function ModalCheckout({
       "",
       `*Forma de Pagamento:* ${textoPagamento}`,
       "",
-      `✨ *MUITO OBRIGADO PELO SEU PEDIDO!*`,
-      `É um verdadeiro prazer ter você como nosso cliente. Preparamos tudo com muito carinho e capricho para você saborear a verdadeira essência da Amazônia na sua casa! 🌿🥥`,
+      `✨ *MUITO OBRIGADO PELO SEU PEDIDO, ${primeiroNome.toUpperCase()}!*`,
+      `Olá, ${primeiroNome}! Foi um verdadeiro prazer ter você como nosso cliente. Preparamos tudo com muito carinho e capricho para você saborear a verdadeira essência da Amazônia na sua casa! 🌿🥥`,
       "",
       `_Pedido enviado automaticamente para a cozinha!_`,
     ].join("\n");

@@ -371,6 +371,7 @@ function CardComanda({
     hour: "2-digit",
     minute: "2-digit",
   });
+  const primeiroNome = (pedido.cliente.nome || "").trim().split(" ")[0] || "Cliente";
 
   return (
     <div className="group relative rounded-2xl border border-white/10 bg-[#17251c] p-4 shadow-md transition-all hover:border-white/20 space-y-3.5">
@@ -509,7 +510,7 @@ function CardComanda({
               className="tap flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-950/70 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/60 text-xs font-bold transition-colors"
             >
               <Send className="h-3 w-3 text-emerald-400" />
-              <span>🌿 WhatsApp: Confirmado (Etapa 1)</span>
+              <span>🌿 Avisar {primeiroNome} (Confirmado)</span>
             </button>
           )}
 
@@ -519,7 +520,7 @@ function CardComanda({
               className="tap flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-sky-950/70 border border-sky-500/40 text-sky-300 hover:bg-sky-900/60 text-xs font-bold transition-colors"
             >
               <Package className="h-3.5 w-3.5 text-sky-400" />
-              <span>👨‍🍳 WhatsApp: Em Preparo (Etapa 2)</span>
+              <span>👨‍🍳 Avisar {primeiroNome} (Em Preparo)</span>
             </button>
           )}
 
@@ -529,7 +530,7 @@ function CardComanda({
               className="tap flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-amber-500/20 border border-amber-500/50 text-amber-300 hover:bg-amber-500/30 text-xs font-bold transition-colors shadow-xs"
             >
               <AlertTriangle className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
-              <span>🚨 Disparar Alerta Antiespantalho (Etapa 3)</span>
+              <span>🚨 Avisar {primeiroNome} (Saiu p/ Entrega)</span>
             </button>
           )}
         </div>

@@ -31,8 +31,11 @@ import {
   type Produto,
 } from "@/lib/menu-data";
 import {
+  getCategories,
   getCustomProducts,
+  onCategoriesUpdate,
   onProductsUpdate,
+  type Categoria,
 } from "@/lib/products-store";
 import {
   checkStoreOpenStatus,
@@ -73,15 +76,12 @@ export const Route = createFileRoute("/")({
   component: Cardapio,
 });
 
-const abas = [
-  { id: "combos", nome: "Combos Especiais" },
-  { id: "avulsos", nome: "Produtos à Pronta Entrega" },
-] as const;
-
-type AbaId = (typeof abas)[number]["id"];
-
 function Cardapio() {
-  const [aba, setAba] = useState<AbaId>("combos");
+  const [categorias, setCategorias] = useState<Categoria[]>(() => getCategories());
+  const [aba, setAba] = useState<string>(() => {
+    const cats = getCategories();
+    return cats[0]?.id || "combos";
+  });
   const [cart, setCart] = useState<OrderItem[]>([]);
   const [cartAberto, setCartAberto] = useState(false);
 
@@ -95,13 +95,22 @@ function Cardapio() {
   const [pedidoAtivo, setPedidoAtivo] = useState<Order | null>(null);
   const [preparoAberto, setPreparoAberto] = useState(false);
 
-  // Sincronização dinâmica de produtos e status da loja
+  // Sincronização dinâmica de produtos, categorias e status da loja
   const [produtosData, setProdutosData] = useState(() => getCustomProducts());
   const [storeStatus, setStoreStatus] = useState<StoreStatusResult>(() => checkStoreOpenStatus());
 
   useEffect(() => {
     const cleanup = onProductsUpdate(() => {
       setProdutosData(getCustomProducts());
+    });
+    return cleanup;
+  }, []);
+
+  useEffect(() => {
+    const cleanup = onCategoriesUpdate(() => {
+      const cats = getCategories();
+      setCategorias(cats);
+      setAba((atual) => (cats.some((c) => c.id === atual) ? atual : cats[0]?.id || "combos"));
     });
     return cleanup;
   }, []);
@@ -115,9 +124,6 @@ function Cardapio() {
       clearInterval(timer);
     };
   }, []);
-
-  const combos = produtosData.combos.filter((c) => c.ativo !== false);
-  const avulsos = produtosData.avulsos.filter((a) => a.ativo !== false);
 
   // Sincroniza e monitora pedido ativo do cliente
   useEffect(() => {
@@ -233,13 +239,13 @@ function Cardapio() {
 
       {/* Abas de Navegação Fluidas em Pílula Centralizada */}
       <nav className="sticky top-0 z-30 border-b border-border/70 bg-background/90 py-2 sm:py-2.5 backdrop-blur-xl shadow-xs">
-        <div className="mx-auto flex max-w-xl justify-center px-4">
-          <div className="inline-flex items-center rounded-full bg-secondary/80 p-1 border border-border shadow-inner">
-            {abas.map((a) => (
+        <div className="mx-auto flex max-w-2xl justify-center px-4 overflow-x-auto no-scrollbar">
+          <div className="inline-flex items-center rounded-full bg-secondary/80 p-1 border border-border shadow-inner max-w-full overflow-x-auto no-scrollbar">
+            {categorias.map((a) => (
               <button
                 key={a.id}
                 onClick={() => setAba(a.id)}
-                className={`tap relative whitespace-nowrap rounded-full px-4 sm:px-6 py-1.5 text-xs sm:text-sm font-bold tracking-wide transition-all duration-200 ${
+                className={`tap relative whitespace-nowrap rounded-full px-4 sm:px-6 py-1.5 text-xs sm:text-sm font-bold tracking-wide transition-all duration-200 shrink-0 ${
                   aba === a.id
                     ? "bg-forest text-forest-foreground shadow-md"
                     : "text-muted-foreground hover:text-foreground hover:bg-black/5"
@@ -252,45 +258,52 @@ function Cardapio() {
         </div>
       </nav>
 
-      {/* Grid de Produtos */}
+      {/* Grid de Produtos Dinâmico por Categoria */}
       <main className="mx-auto max-w-4xl px-4 pt-4 sm:pt-6">
-        {aba === "combos" && (
-          <Secao
-            titulo="Combos Especiais"
-            subtitulo="Kits completos em garrafas e potes lacrados. Receba os ingredientes frescos e monte o seu açaí tradicional do seu jeito, no capricho!"
-          >
-            <div className="grid gap-5 sm:grid-cols-2">
-              {combos.map((p, i) => (
-                <CardProduto
-                  key={p.id}
-                  produto={p}
-                  priority={i === 0}
-                  isCombo={true}
-                  onAdd={() => iniciarAdicao(p, true)}
-                  onAbrirReceitas={() => setPreparoAberto(true)}
-                />
-              ))}
-            </div>
-          </Secao>
-        )}
+        {categorias.map((cat) => {
+          if (aba !== cat.id) return null;
 
-        {aba === "avulsos" && (
-          <Secao
-            titulo="Produtos à Pronta Entrega"
-            subtitulo="Garrafas de açaí batido na hora, polpas legítimas e itens de empório artesanal."
-          >
-            <div className="grid gap-5 sm:grid-cols-2">
-              {avulsos.map((p) => (
-                <CardProduto
-                  key={p.id}
-                  produto={p}
-                  onAdd={() => iniciarAdicao(p, false)}
-                  onAbrirReceitas={() => setPreparoAberto(true)}
-                />
-              ))}
-            </div>
-          </Secao>
-        )}
+          const prods = produtosData.todos.filter((p) => {
+            if (p.ativo === false) return false;
+            if (cat.id === "combos") return p.categoria === "combos" || p.categoria === "combo";
+            if (cat.id === "avulsos") return p.categoria === "avulsos" || p.categoria === "avulso";
+            return p.categoria === cat.id;
+          });
+
+          const isComboSection = cat.id === "combos";
+
+          return (
+            <Secao
+              key={cat.id}
+              titulo={cat.nome}
+              subtitulo={
+                cat.descricao ||
+                (isComboSection
+                  ? "Kits completos em garrafas e potes lacrados. Receba os ingredientes frescos e monte o seu açaí tradicional do seu jeito, no capricho!"
+                  : "Garrafas de açaí batido na hora, polpas legítimas e itens de empório artesanal.")
+              }
+            >
+              {prods.length === 0 ? (
+                <div className="text-center py-12 rounded-3xl bg-secondary/30 border border-border/40 text-muted-foreground">
+                  <p className="text-sm font-medium">Nenhum produto disponível nesta categoria no momento.</p>
+                </div>
+              ) : (
+                <div className="grid gap-5 sm:grid-cols-2">
+                  {prods.map((p, i) => (
+                    <CardProduto
+                      key={p.id}
+                      produto={p}
+                      priority={i === 0}
+                      isCombo={isComboSection}
+                      onAdd={() => iniciarAdicao(p, isComboSection)}
+                      onAbrirReceitas={() => setPreparoAberto(true)}
+                    />
+                  ))}
+                </div>
+              )}
+            </Secao>
+          );
+        })}
       </main>
 
       {/* Rodapé com Horários, Status 100% Delivery e Link do KDS */}

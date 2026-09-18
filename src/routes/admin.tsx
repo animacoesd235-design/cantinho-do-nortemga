@@ -55,12 +55,17 @@ import {
 } from "@/lib/cash-store";
 import { brl } from "@/lib/menu-data";
 import {
+  addCategory,
+  deleteCategory,
   deleteProduct,
+  getCategories,
   getCustomProducts,
   IMAGE_PRESETS,
+  onCategoriesUpdate,
   onProductsUpdate,
   resetProductsToDefault,
   saveProduct,
+  type Categoria,
   type CustomProduct,
 } from "@/lib/products-store";
 import {
@@ -756,41 +761,32 @@ function TabCaixa() {
 // =========================================================================
 
 function TabProdutos() {
-  const [combos, setCombos] = useState<CustomProduct[]>(() => {
-    try {
-      const data = getCustomProducts();
-      return Array.isArray(data?.combos) ? data.combos : [];
-    } catch {
-      return [];
-    }
-  });
-  const [avulsos, setAvulsos] = useState<CustomProduct[]>(() => {
-    try {
-      const data = getCustomProducts();
-      return Array.isArray(data?.avulsos) ? data.avulsos : [];
-    } catch {
-      return [];
-    }
-  });
+  const [produtosData, setProdutosData] = useState(() => getCustomProducts());
+  const [categorias, setCategorias] = useState<Categoria[]>(() => getCategories());
   const [produtoEditando, setProdutoEditando] = useState<CustomProduct | null>(null);
   const [modoFoto, setModoFoto] = useState<"upload" | "preset" | "url">("upload");
   const [carregandoImagem, setCarregandoImagem] = useState(false);
+  const [modoNovaCategoria, setModoNovaCategoria] = useState(false);
+  const [novoNomeCategoria, setNovoNomeCategoria] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const carregarProdutos = () => {
+  const carregarProdutosECategorias = () => {
     try {
-      const data = getCustomProducts();
-      setCombos(Array.isArray(data?.combos) ? data.combos : []);
-      setAvulsos(Array.isArray(data?.avulsos) ? data.avulsos : []);
+      setProdutosData(getCustomProducts());
+      setCategorias(getCategories());
     } catch (e) {
-      console.error("Erro ao carregar produtos:", e);
+      console.error("Erro ao carregar produtos/categorias:", e);
     }
   };
 
   useEffect(() => {
-    carregarProdutos();
-    const cleanup = onProductsUpdate(() => carregarProdutos());
-    return cleanup;
+    carregarProdutosECategorias();
+    const cleanupProds = onProductsUpdate(() => carregarProdutosECategorias());
+    const cleanupCats = onCategoriesUpdate(() => carregarProdutosECategorias());
+    return () => {
+      cleanupProds();
+      cleanupCats();
+    };
   }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -837,10 +833,20 @@ function TabProdutos() {
       return;
     }
 
+    let categoriaFinal = produtoEditando.categoria || "avulsos";
+    if (modoNovaCategoria && novoNomeCategoria.trim()) {
+      const nova = addCategory(novoNomeCategoria.trim());
+      categoriaFinal = nova.id;
+      setCategorias(getCategories());
+      setModoNovaCategoria(false);
+      setNovoNomeCategoria("");
+    }
+
     saveProduct({
       ...produtoEditando,
       nome,
       preco,
+      categoria: categoriaFinal,
     });
     // Limpar cache legado de cdn-midia se houver, garantindo que a nova foto seja soberana
     if (typeof window !== "undefined") {
@@ -868,17 +874,32 @@ function TabProdutos() {
 
   const handleNovoProduto = () => {
     const defaultImg = (IMAGE_PRESETS && IMAGE_PRESETS.length > 0 && IMAGE_PRESETS[0]?.url) || "";
+    const defaultCat = categorias[0]?.id || "combos";
     const novo: CustomProduct = {
       id: "prod-" + Date.now().toString().slice(-6),
       nome: "Novo Item Artesanal",
       descricao: "Descrição do produto artesanal",
       preco: 30,
-      categoria: "avulso",
+      categoria: defaultCat,
       imagem: defaultImg,
       destaque: "",
     };
+    setModoNovaCategoria(false);
+    setNovoNomeCategoria("");
     setModoFoto("upload");
     setProdutoEditando(novo);
+  };
+
+  const handleExcluirCategoria = (cat: Categoria) => {
+    if (cat.id === "combos" || cat.id === "avulsos") {
+      toast.error("As categorias padrão não podem ser excluídas.");
+      return;
+    }
+    if (confirm(`Deseja excluir a categoria "${cat.nome}"? Os produtos vinculados a ela serão movidos para Produtos à Pronta Entrega.`)) {
+      deleteCategory(cat.id);
+      carregarProdutosECategorias();
+      toast.success(`Categoria "${cat.nome}" removida com sucesso!`);
+    }
   };
 
   return (
@@ -886,9 +907,9 @@ function TabProdutos() {
       {/* Topo com Ações */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-3xl border border-white/10 bg-[#121c15] p-5 shadow-xl">
         <div>
-          <h2 className="text-xl font-black font-display text-white">Gestão de Cardápio & Preços</h2>
+          <h2 className="text-xl font-black font-display text-white">Gestão de Cardápio, Categorias & Preços</h2>
           <p className="text-xs text-white/60">
-            Altere preços, descrições, fotos e destaques. As alterações refletem imediatamente na vitrine dos clientes.
+            Crie categorias dinâmicas, altere preços, descrições e fotos com upload direto. As alterações refletem imediatamente na vitrine pública.
           </p>
         </div>
 
@@ -911,50 +932,65 @@ function TabProdutos() {
         </div>
       </div>
 
-      {/* Seção de Combos */}
-      <div className="space-y-3">
-        <h3 className="text-sm font-extrabold uppercase tracking-wider text-amber-300">
-          Combos & Kits Degustação ({combos?.length || 0})
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {combos && combos.length > 0 ? (
-            combos.map((prod) => (
-              <CardProdutoAdmin
-                key={prod?.id || Math.random()}
-                produto={prod}
-                onEditar={() => setProdutoEditando({ ...prod })}
-                onExcluir={() => handleExcluirProduto(prod?.id || "", prod?.nome || "")}
-              />
-            ))
-          ) : (
-            <p className="text-xs text-white/40 col-span-full py-4 text-center">
-              Nenhum combo cadastrado no momento.
-            </p>
-          )}
-        </div>
-      </div>
+      {/* Listagem de Categorias e Produtos Dinâmicos */}
+      <div className="space-y-8">
+        {categorias.map((cat) => {
+          const prods = produtosData.todos.filter((p) => {
+            if (cat.id === "combos") return p.categoria === "combos" || p.categoria === "combo";
+            if (cat.id === "avulsos") return p.categoria === "avulsos" || p.categoria === "avulso";
+            return p.categoria === cat.id;
+          });
+          const isFixa = cat.id === "combos" || cat.id === "avulsos";
 
-      {/* Seção de Avulsos */}
-      <div className="space-y-3 pt-4">
-        <h3 className="text-sm font-extrabold uppercase tracking-wider text-emerald-300">
-          Itens Avulsos & Empório ({avulsos?.length || 0})
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {avulsos && avulsos.length > 0 ? (
-            avulsos.map((prod) => (
-              <CardProdutoAdmin
-                key={prod?.id || Math.random()}
-                produto={prod}
-                onEditar={() => setProdutoEditando({ ...prod })}
-                onExcluir={() => handleExcluirProduto(prod?.id || "", prod?.nome || "")}
-              />
-            ))
-          ) : (
-            <p className="text-xs text-white/40 col-span-full py-4 text-center">
-              Nenhum item avulso cadastrado no momento.
-            </p>
-          )}
-        </div>
+          return (
+            <div key={cat.id} className="space-y-3">
+              <div className="flex items-center justify-between gap-2 border-b border-white/10 pb-2">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-extrabold uppercase tracking-wider text-amber-300">
+                    {cat.nome} ({prods.length})
+                  </h3>
+                  {!isFixa && (
+                    <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[9px] font-bold text-emerald-300">
+                      Categoria Personalizada
+                    </span>
+                  )}
+                </div>
+                {!isFixa && (
+                  <button
+                    type="button"
+                    onClick={() => handleExcluirCategoria(cat)}
+                    title="Excluir esta categoria personalizada"
+                    className="tap inline-flex items-center gap-1 text-[11px] font-medium text-white/40 hover:text-red-400 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    <span>Remover Categoria</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {prods.length > 0 ? (
+                  prods.map((prod) => (
+                    <CardProdutoAdmin
+                      key={prod.id}
+                      produto={prod}
+                      onEditar={() => {
+                        setModoNovaCategoria(false);
+                        setNovoNomeCategoria("");
+                        setProdutoEditando({ ...prod });
+                      }}
+                      onExcluir={() => handleExcluirProduto(prod.id, prod.nome)}
+                    />
+                  ))
+                ) : (
+                  <p className="text-xs text-white/40 col-span-full py-4 text-center">
+                    Nenhum produto cadastrado nesta categoria.
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Modal de Edição de Produto */}
@@ -1035,21 +1071,98 @@ function TabProdutos() {
                   />
                 </div>
 
-                <div>
+                <div className="sm:col-span-2">
                   <label className="block font-semibold text-white/70 mb-1">Categoria:</label>
                   <select
-                    value={produtoEditando.categoria || "avulso"}
-                    onChange={(e) =>
-                      setProdutoEditando({
-                        ...produtoEditando,
-                        categoria: e.target.value as "combo" | "avulso",
-                      })
-                    }
-                    className="w-full rounded-xl border border-white/20 bg-[#0e1710] px-3 py-2 text-white focus:outline-hidden focus:border-amber-400"
+                    value={modoNovaCategoria ? "__nova__" : (produtoEditando.categoria || "avulsos")}
+                    onChange={(e) => {
+                      if (e.target.value === "__nova__") {
+                        setModoNovaCategoria(true);
+                        setNovoNomeCategoria("");
+                      } else {
+                        setModoNovaCategoria(false);
+                        setProdutoEditando({
+                          ...produtoEditando,
+                          categoria: e.target.value,
+                        });
+                      }
+                    }}
+                    className="w-full rounded-xl border border-white/20 bg-[#0e1710] px-3 py-2 text-white focus:outline-hidden focus:border-amber-400 font-medium"
                   >
-                    <option value="combo">Combo / Kit Degustação</option>
-                    <option value="avulso">Item Avulso / Empório</option>
+                    {categorias.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.nome}
+                      </option>
+                    ))}
+                    <option value="__nova__">➕ Adicionar Nova Categoria...</option>
                   </select>
+
+                  {modoNovaCategoria && (
+                    <div className="mt-2.5 p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-[11px] font-bold text-amber-300">
+                          Nome da Nova Categoria:
+                        </label>
+                        <span className="text-[10px] text-amber-400/80 font-semibold">
+                          Aparece como nova aba no cardápio
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={novoNomeCategoria}
+                          onChange={(e) => setNovoNomeCategoria(e.target.value)}
+                          placeholder="Ex: Sobremesas, Bebidas, Promoções..."
+                          className="flex-1 rounded-xl border border-amber-400/40 bg-black/60 px-3 py-2 text-xs text-white placeholder-white/40 focus:outline-hidden focus:border-amber-400 font-semibold"
+                          autoFocus
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              const limpo = novoNomeCategoria.trim();
+                              if (!limpo) {
+                                toast.error("Informe o nome da nova categoria.");
+                                return;
+                              }
+                              const nova = addCategory(limpo);
+                              setCategorias(getCategories());
+                              setProdutoEditando({ ...produtoEditando, categoria: nova.id });
+                              setModoNovaCategoria(false);
+                              setNovoNomeCategoria("");
+                              toast.success(`Categoria "${nova.nome}" criada com sucesso!`);
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const limpo = novoNomeCategoria.trim();
+                            if (!limpo) {
+                              toast.error("Informe o nome da nova categoria.");
+                              return;
+                            }
+                            const nova = addCategory(limpo);
+                            setCategorias(getCategories());
+                            setProdutoEditando({ ...produtoEditando, categoria: nova.id });
+                            setModoNovaCategoria(false);
+                            setNovoNomeCategoria("");
+                            toast.success(`Categoria "${nova.nome}" criada com sucesso!`);
+                          }}
+                          className="tap px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs transition-colors shrink-0 shadow-xs cursor-pointer"
+                        >
+                          Adicionar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setModoNovaCategoria(false);
+                          }}
+                          className="tap px-3 py-2 rounded-xl border border-white/20 text-white/70 hover:text-white text-xs transition-colors shrink-0 cursor-pointer"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div>
