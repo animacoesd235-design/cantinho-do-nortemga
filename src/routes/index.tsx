@@ -235,14 +235,14 @@ function Cardapio() {
       )}
 
       {/* Abas de Navegação Fluidas em Pílula Centralizada */}
-      <nav className="sticky top-0 z-30 border-b border-border/70 bg-background/90 py-3.5 backdrop-blur-xl shadow-xs">
+      <nav className="sticky top-0 z-30 border-b border-border/70 bg-background/90 py-2 sm:py-2.5 backdrop-blur-xl shadow-xs">
         <div className="mx-auto flex max-w-xl justify-center px-4">
-          <div className="inline-flex items-center rounded-full bg-secondary/80 p-1.5 border border-border shadow-inner">
+          <div className="inline-flex items-center rounded-full bg-secondary/80 p-1 border border-border shadow-inner">
             {abas.map((a) => (
               <button
                 key={a.id}
                 onClick={() => setAba(a.id)}
-                className={`tap relative whitespace-nowrap rounded-full px-5 sm:px-7 py-2 text-xs sm:text-sm font-bold tracking-wide transition-all duration-200 ${
+                className={`tap relative whitespace-nowrap rounded-full px-4 sm:px-6 py-1.5 text-xs sm:text-sm font-bold tracking-wide transition-all duration-200 ${
                   aba === a.id
                     ? "bg-forest text-forest-foreground shadow-md"
                     : "text-muted-foreground hover:text-foreground hover:bg-black/5"
@@ -256,7 +256,7 @@ function Cardapio() {
       </nav>
 
       {/* Grid de Produtos */}
-      <main className="mx-auto max-w-4xl px-4 pt-8">
+      <main className="mx-auto max-w-4xl px-4 pt-4 sm:pt-6">
         {aba === "combos" && (
           <Secao
             titulo="Combos Especiais"
@@ -356,25 +356,22 @@ function BannerUrgencia() {
     <aside
       role="region"
       aria-label="Aviso de lote diário"
-      className="relative z-40 overflow-hidden bg-[#0a110d] text-amber-200 border-b border-amber-500/25 px-3.5 py-2.5 shadow-sm"
+      className="relative z-40 overflow-hidden bg-[#080d0a] text-amber-200 border-b border-amber-500/20 px-3 py-1.5 shadow-2xs text-center"
     >
-      {/* Luz ambiente de destaque sutil */}
-      <div className="absolute inset-0 bg-gradient-to-r from-forest/30 via-gold/15 to-forest/30 pointer-events-none" />
-
-      <div className="relative mx-auto flex max-w-5xl items-center justify-center gap-2.5 text-center text-xs sm:text-sm">
-        <span className="relative flex h-2 w-2 shrink-0">
+      <div className="relative mx-auto flex max-w-5xl items-center justify-center gap-2 text-[11px] sm:text-xs">
+        <span className="relative flex h-1.5 w-1.5 shrink-0">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400" />
         </span>
 
-        <p className="font-medium text-white/95 leading-tight">
+        <p className="font-medium text-white/90 leading-tight">
           <strong className="font-bold text-amber-300">
             🌿 Lote artesanal diário:
           </strong>{" "}
-          Restam poucas garrafas de açaí engarrafado para entrega hoje em Maringá!
+          Restam poucas garrafas de açaí para entrega hoje em Maringá!
         </p>
 
-        <span className="hidden md:inline-flex items-center rounded-full bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 text-[10px] uppercase font-black tracking-wider text-amber-300 shrink-0">
+        <span className="hidden md:inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] uppercase font-black tracking-wider text-amber-300 shrink-0">
           Últimas Garrafas
         </span>
       </div>
@@ -383,34 +380,39 @@ function BannerUrgencia() {
 }
 
 function BannerLojaFechada({ status }: { status: StoreStatusResult }) {
+  const isPausa = status.reason === "manual_pause";
+  const horarioTexto = status.badgeText.toLowerCase().includes("abre")
+    ? status.badgeText
+    : status.nextSchedule
+    ? `Abre ${status.nextSchedule}`
+    : "Abre às 13:00";
+
   return (
     <aside
       role="region"
       aria-label="Aviso de atendimento"
-      className="relative z-30 bg-gradient-to-b from-[#0e1710] to-[#121c15] text-white border-b border-amber-500/30 px-4 py-3.5 sm:py-4 shadow-lg"
+      className="relative z-30 bg-[#0c140e] text-white border-b border-amber-500/30 px-3.5 py-1.5 shadow-sm"
     >
-      <div className="mx-auto max-w-4xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
-        <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30 mt-0.5">
-            <Clock className="h-5 w-5" />
-          </div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm sm:text-base font-bold text-amber-300 font-display">
-                {status.bannerTitle}
-              </h3>
-              <span className="rounded-full bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 text-[10px] font-extrabold uppercase text-amber-200">
-                {status.badgeText}
-              </span>
-            </div>
-            <p className="text-xs sm:text-sm text-white/80 leading-snug">
-              {status.bannerMessage}
-            </p>
-            <p className="text-[11px] text-white/60">
-              {status.nextSchedule ? `⏰ Horário: ${status.nextSchedule}. ` : ""}
-              Nosso cardápio segue aberto para você montar seu pedido ou agendar com antecedência!
-            </p>
-          </div>
+      <div className="mx-auto max-w-4xl flex items-center justify-between gap-2 text-xs">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+          </span>
+
+          <p className="truncate text-white/90 text-[11px] sm:text-xs">
+            <strong className="font-bold text-amber-300">
+              {isPausa ? "⏸️ Pausa Estratégica" : `⏰ ${horarioTexto}`}:
+            </strong>{" "}
+            <span className="hidden sm:inline">
+              {isPausa
+                ? (status.bannerMessage || "Atendimento em pausa momentânea. Cardápio liberado para consulta.")
+                : "Cardápio liberado para você montar seu pedido com antecedência!"}
+            </span>
+            <span className="sm:hidden">
+              {isPausa ? "Cardápio aberto para consulta." : "Cardápio aberto para pedidos!"}
+            </span>
+          </p>
         </div>
 
         <a
@@ -419,9 +421,9 @@ function BannerLojaFechada({ status }: { status: StoreStatusResult }) {
           )}`}
           target="_blank"
           rel="noreferrer"
-          className="tap shrink-0 inline-flex items-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black px-4 py-2 text-xs font-black shadow-md transition-all"
+          className="tap shrink-0 inline-flex items-center gap-1 rounded-full bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 text-[11px] font-bold transition-all"
         >
-          <span>💬 Falar no WhatsApp</span>
+          <span>💬 WhatsApp</span>
         </a>
       </div>
     </aside>
@@ -443,34 +445,34 @@ function HeroSection() {
         <div className="hero-overlay absolute inset-0 backdrop-blur-[1px]" />
       </div>
 
-      {/* Conteúdo Centralizado do Banner - Clean, Compacto e Focado na Marca */}
-      <div className="relative z-10 mx-auto flex max-w-3xl flex-col items-center px-4 py-12 sm:py-16 text-center">
-        {/* Logo Oficial Redonda em Tamanho de Destaque */}
+      {/* Conteúdo Centralizado do Banner - Compacto, Elegante e Focado no Topo (Acima da Dobra) */}
+      <div className="relative z-10 mx-auto flex max-w-2xl flex-col items-center px-4 py-5 sm:py-7 text-center">
+        {/* Logo Oficial Redonda com Dimensões Refinadas */}
         <div className="relative group">
-          <div className="absolute -inset-2 rounded-full bg-gradient-to-r from-gold/50 via-white/20 to-gold/50 opacity-65 blur-lg group-hover:opacity-90 transition duration-500" />
+          <div className="absolute -inset-1.5 rounded-full bg-gradient-to-r from-gold/50 via-white/20 to-gold/50 opacity-60 blur-md group-hover:opacity-85 transition duration-300" />
           <img
             src={logo}
             alt="Cantinho do Norte — A essência da Amazônia na sua mesa"
-            width={128}
-            height={128}
+            width={88}
+            height={88}
             loading="eager"
             decoding="async"
-            className="relative h-28 w-28 sm:h-36 sm:w-36 rounded-full aspect-square object-contain logo-ring bg-black/40 shadow-xl transition-transform duration-300 group-hover:scale-105"
+            className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-full aspect-square object-contain logo-ring bg-black/40 shadow-xl transition-transform duration-300 group-hover:scale-105"
           />
         </div>
 
-        {/* Tag Sutil */}
-        <div className="mt-5 inline-flex items-center gap-2 rounded-full hero-badge px-4 py-1.5 text-[11px] sm:text-xs font-bold uppercase tracking-[0.22em] text-amber-200/95 shadow-sm">
+        {/* Tag Sutil e Polida */}
+        <div className="mt-3 inline-flex items-center gap-1.5 rounded-full hero-badge px-3 py-0.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-[0.2em] text-amber-200/90 shadow-2xs">
           <span>🌿 SABORES QUE VÊM DA NOSSA TERRA</span>
         </div>
 
         {/* Título Principal */}
-        <h1 className="mt-3.5 text-3xl sm:text-5xl font-extrabold tracking-tight text-white font-display drop-shadow-md">
+        <h1 className="mt-1.5 text-2xl sm:text-3xl font-extrabold tracking-tight text-white font-display drop-shadow-md">
           Cantinho do Norte
         </h1>
 
         {/* Subtítulo Direto com Reforço de 100% Delivery */}
-        <p className="mt-2.5 max-w-lg text-sm sm:text-base font-medium text-emerald-100/90 leading-relaxed drop-shadow-sm">
+        <p className="mt-1 max-w-md text-xs sm:text-sm font-medium text-emerald-100/90 leading-snug drop-shadow-xs">
           O autêntico açaí batido na garrafa e kits artesanais direto do Norte • 100% Delivery em Maringá
         </p>
       </div>
