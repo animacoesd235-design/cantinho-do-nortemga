@@ -118,10 +118,12 @@ function Cardapio() {
 
     window.addEventListener("focus", sincronizarTudo);
     window.addEventListener("visibilitychange", sincronizarTudo);
+    const intervalTimer = setInterval(sincronizarTudo, 2000);
 
     return () => {
       cleanupProds();
       cleanupCats();
+      clearInterval(intervalTimer);
       window.removeEventListener("focus", sincronizarTudo);
       window.removeEventListener("visibilitychange", sincronizarTudo);
     };

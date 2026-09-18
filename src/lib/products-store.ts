@@ -26,8 +26,14 @@ export interface CustomProduct extends Produto {
   ativo?: boolean;
 }
 
-const STORAGE_KEY = "cdn_produtos_v2";
+export const PRODUCTS_STORAGE_KEY = "cantinho_norte_products";
+export const STORAGE_KEY = PRODUCTS_STORAGE_KEY;
 const CATEGORIES_KEY = "cdn_categorias_v2";
+
+const syncChannel =
+  typeof window !== "undefined" && typeof BroadcastChannel !== "undefined"
+    ? new BroadcastChannel("cantinho_norte_sync_channel")
+    : null;
 
 export const IMAGE_PRESETS = [
   { id: "combo-para", label: "Kit / Combo Amazônico", url: defaultCombos[0]?.imagem || "" },
@@ -176,35 +182,36 @@ export function getCustomProducts(): {
 
   try {
     let raw = localStorage.getItem(STORAGE_KEY);
+    // Migração transparente de chaves legadas caso ainda não exista em cantinho_norte_products
     if (!raw) {
-      raw = localStorage.getItem("cdn_produtos_v1") || localStorage.getItem("cdn_custom_products_v1");
+      raw = localStorage.getItem("cdn_produtos_v2") || localStorage.getItem("cdn_produtos_v1");
     }
+    // Se o localStorage estiver vazio, utiliza a lista inicial de fábrica como padrão
     if (!raw) {
       return def;
     }
-    const data = JSON.parse(raw);
 
-    if (Array.isArray(data?.todos) && data.todos.length > 0) {
-      const todos = data.todos.map((p: any) => sanitizeProduct(p));
-      const combos = todos.filter((p) => p.categoria === "combo" || p.categoria === "combos");
-      const avulsos = todos.filter((p) => p.categoria !== "combo" && p.categoria !== "combos");
-      return { combos, avulsos, todos };
+    const parsed = JSON.parse(raw);
+    let rawList: any[] = [];
+    if (Array.isArray(parsed)) {
+      rawList = parsed;
+    } else if (Array.isArray(parsed?.todos)) {
+      rawList = parsed.todos;
+    } else if (Array.isArray(parsed?.combos) || Array.isArray(parsed?.avulsos)) {
+      rawList = [...(parsed.combos || []), ...(parsed.avulsos || [])];
     }
 
-    const combos = Array.isArray(data?.combos)
-      ? data.combos.map((c: any) => sanitizeProduct(c, "combos"))
-      : def.combos;
-    const avulsos = Array.isArray(data?.avulsos)
-      ? data.avulsos.map((a: any) => sanitizeProduct(a, "avulsos"))
-      : def.avulsos;
+    if (rawList.length === 0) {
+      return def;
+    }
 
-    return {
-      combos,
-      avulsos,
-      todos: [...combos, ...avulsos],
-    };
+    const todos = rawList.map((p: any) => sanitizeProduct(p, p?.categoria));
+    const combos = todos.filter((p) => p.categoria === "combo" || p.categoria === "combos");
+    const avulsos = todos.filter((p) => p.categoria !== "combo" && p.categoria !== "combos");
+
+    return { combos, avulsos, todos };
   } catch (e) {
-    console.error("Erro ao carregar produtos:", e);
+    console.error("Erro ao carregar produtos do localStorage:", e);
     return def;
   }
 }
@@ -222,21 +229,35 @@ export function saveAllProducts(data: {
         (v, i, a) => a.findIndex((t) => t.id === v.id) === i
       );
     const todos = rawTodos.map((p) => sanitizeProduct(p, p.categoria));
+    const combos = todos.filter((p) => p.categoria === "combo" || p.categoria === "combos");
+    const avulsos = todos.filter((p) => p.categoria !== "combo" && p.categoria !== "combos");
 
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({
-        combos: data.combos.map((c) => sanitizeProduct(c, "combos")),
-        avulsos: data.avulsos.map((a) => sanitizeProduct(a, "avulsos")),
-        todos,
-      })
-    );
+    // Grava na chave unificada 'cantinho_norte_products' no localStorage
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+
+    // Mantém compatibilidade com chave legada
     try {
-      localStorage.setItem("cdn_sync_timestamp", String(Date.now()));
+      localStorage.setItem(
+        "cdn_produtos_v2",
+        JSON.stringify({
+          combos: combos.map((c) => sanitizeProduct(c, "combos")),
+          avulsos: avulsos.map((a) => sanitizeProduct(a, "avulsos")),
+          todos,
+        })
+      );
+      localStorage.setItem("cantinho_norte_sync_time", String(Date.now()));
     } catch {}
+
+    // Notificação instantânea local
     window.dispatchEvent(new CustomEvent("cdn:products_updated"));
+    document.dispatchEvent(new CustomEvent("cdn:products_updated"));
+
+    // Notificação instantânea cross-tab via BroadcastChannel
+    try {
+      syncChannel?.postMessage({ type: "products_updated", timestamp: Date.now() });
+    } catch {}
   } catch (e) {
-    console.error("Erro ao salvar produtos:", e);
+    console.error("Erro ao salvar produtos no localStorage:", e);
   }
 }
 
@@ -270,9 +291,18 @@ export function resetProductsToDefault(): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem("cdn_produtos_v2");
+    localStorage.removeItem("cdn_produtos_v1");
     localStorage.removeItem(CATEGORIES_KEY);
+
     window.dispatchEvent(new CustomEvent("cdn:products_updated"));
+    document.dispatchEvent(new CustomEvent("cdn:products_updated"));
     window.dispatchEvent(new CustomEvent("cdn:categories_updated"));
+    document.dispatchEvent(new CustomEvent("cdn:categories_updated"));
+
+    try {
+      syncChannel?.postMessage({ type: "products_updated", timestamp: Date.now() });
+    } catch {}
   } catch (e) {
     console.error("Erro ao resetar produtos:", e);
   }
@@ -281,10 +311,27 @@ export function resetProductsToDefault(): void {
 export function onProductsUpdate(callback: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   const handler = () => callback();
+
   window.addEventListener("cdn:products_updated", handler);
+  document.addEventListener("cdn:products_updated", handler);
   window.addEventListener("storage", handler);
+
+  const bcHandler = (e: MessageEvent) => {
+    if (e.data?.type === "products_updated") {
+      handler();
+    }
+  };
+
+  if (syncChannel) {
+    syncChannel.addEventListener("message", bcHandler);
+  }
+
   return () => {
     window.removeEventListener("cdn:products_updated", handler);
+    document.removeEventListener("cdn:products_updated", handler);
     window.removeEventListener("storage", handler);
+    if (syncChannel) {
+      syncChannel.removeEventListener("message", bcHandler);
+    }
   };
 }
