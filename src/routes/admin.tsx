@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
+  Camera,
   Check,
   CheckCircle2,
   Clock,
@@ -10,7 +11,9 @@ import {
   Edit,
   Eye,
   EyeOff,
+  Image as ImageIcon,
   KeyRound,
+  Loader2,
   Lock,
   LogOut,
   Minus,
@@ -25,12 +28,14 @@ import {
   TrendingDown,
   TrendingUp,
   Unlock,
+  Upload,
   Wallet,
   X,
   Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/logo-cantinho.png";
+import { compressImageFile } from "@/lib/image-utils";
 import {
   isAdminAuthenticated,
   loginAdmin,
@@ -768,6 +773,9 @@ function TabProdutos() {
     }
   });
   const [produtoEditando, setProdutoEditando] = useState<CustomProduct | null>(null);
+  const [modoFoto, setModoFoto] = useState<"upload" | "preset" | "url">("upload");
+  const [carregandoImagem, setCarregandoImagem] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const carregarProdutos = () => {
     try {
@@ -784,6 +792,35 @@ function TabProdutos() {
     const cleanup = onProductsUpdate(() => carregarProdutos());
     return cleanup;
   }, []);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Selecione um arquivo de imagem válido (JPG, PNG ou WEBP).");
+      return;
+    }
+
+    try {
+      setCarregandoImagem(true);
+      toast.loading("Processando e otimizando imagem...", { id: "upload-img" });
+      const base64 = await compressImageFile(file, 800, 800, 0.85);
+      if (produtoEditando) {
+        setProdutoEditando({
+          ...produtoEditando,
+          imagem: base64,
+        });
+      }
+      toast.success("Foto carregada com sucesso!", { id: "upload-img" });
+    } catch (err: any) {
+      console.error("Erro no upload da imagem:", err);
+      toast.error(err?.message || "Erro ao processar a imagem", { id: "upload-img" });
+    } finally {
+      setCarregandoImagem(false);
+      if (e.target) e.target.value = "";
+    }
+  };
 
   const handleSalvarProduto = (e: React.FormEvent) => {
     e.preventDefault();
@@ -805,6 +842,12 @@ function TabProdutos() {
       nome,
       preco,
     });
+    // Limpar cache legado de cdn-midia se houver, garantindo que a nova foto seja soberana
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem(`cdn-midia:${produtoEditando.id}`);
+      } catch {}
+    }
     toast.success(`Produto "${nome}" salvo com sucesso!`);
     setProdutoEditando(null);
   };
@@ -834,6 +877,7 @@ function TabProdutos() {
       imagem: defaultImg,
       destaque: "",
     };
+    setModoFoto("upload");
     setProdutoEditando(novo);
   };
 
@@ -1020,41 +1064,168 @@ function TabProdutos() {
                 </div>
               </div>
 
-              {/* Seletor de Foto Pré-definida */}
-              <div>
-                <label className="block font-semibold text-white/70 mb-1.5">
-                  Foto do Produto (Selecione um Preset ou Cole URL):
-                </label>
-                <div className="grid grid-cols-4 gap-2 mb-2">
-                  {IMAGE_PRESETS && IMAGE_PRESETS.length > 0 && IMAGE_PRESETS.map((preset) => (
+              {/* Seletor e Upload de Foto */}
+              <div className="space-y-3 rounded-2xl bg-black/25 p-3.5 border border-white/10">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <label className="block font-bold text-white text-xs">
+                    Foto do Produto:
+                  </label>
+                  <div className="flex items-center gap-1 rounded-xl bg-white/5 p-0.5 border border-white/10">
                     <button
                       type="button"
-                      key={preset.id}
-                      onClick={() => setProdutoEditando({ ...produtoEditando, imagem: preset.url })}
-                      className={`group relative rounded-xl overflow-hidden border-2 aspect-square transition-all ${
-                        produtoEditando.imagem === preset.url
-                          ? "border-amber-400 ring-2 ring-amber-400/40"
-                          : "border-white/10 opacity-70 hover:opacity-100"
+                      onClick={() => setModoFoto("upload")}
+                      className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                        modoFoto === "upload"
+                          ? "bg-amber-500 text-black shadow-xs"
+                          : "text-white/60 hover:text-white"
                       }`}
                     >
-                      {preset.url ? (
-                        <img src={preset.url} alt={preset.label} className="h-full w-full object-cover" />
-                      ) : (
-                        <div className="h-full w-full bg-white/5" />
-                      )}
-                      <span className="absolute inset-x-0 bottom-0 bg-black/70 text-[8px] font-bold text-white text-center py-0.5 truncate px-1">
-                        {preset.label}
-                      </span>
+                      <Upload className="h-3 w-3 inline mr-1" />
+                      Upload Arquivo
                     </button>
-                  ))}
+                    <button
+                      type="button"
+                      onClick={() => setModoFoto("preset")}
+                      className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                        modoFoto === "preset"
+                          ? "bg-amber-500 text-black shadow-xs"
+                          : "text-white/60 hover:text-white"
+                      }`}
+                    >
+                      <ImageIcon className="h-3 w-3 inline mr-1" />
+                      Presets
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setModoFoto("url")}
+                      className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all ${
+                        modoFoto === "url"
+                          ? "bg-amber-500 text-black shadow-xs"
+                          : "text-white/60 hover:text-white"
+                      }`}
+                    >
+                      Link / URL
+                    </button>
+                  </div>
                 </div>
-                <input
-                  type="text"
-                  value={produtoEditando.imagem || ""}
-                  onChange={(e) => setProdutoEditando({ ...produtoEditando, imagem: e.target.value })}
-                  placeholder="URL da Imagem personalizada (https://...)"
-                  className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-1.5 text-white/70 text-[11px] focus:outline-hidden focus:border-amber-400"
-                />
+
+                {/* Pré-visualização da Foto Selecionada */}
+                <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/5 border border-white/10">
+                  {produtoEditando.imagem ? (
+                    <img
+                      src={produtoEditando.imagem}
+                      alt="Pré-visualização"
+                      className="h-20 w-20 rounded-xl object-cover border border-amber-400/40 bg-black/40 shrink-0"
+                    />
+                  ) : (
+                    <div className="h-20 w-20 rounded-xl bg-black/40 border border-white/10 grid place-items-center text-white/40 text-[10px] shrink-0">
+                      Sem foto
+                    </div>
+                  )}
+                  <div className="space-y-1 min-w-0 flex-1">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
+                      <CheckCircle2 className="h-2.5 w-2.5" /> Imagem Definida
+                    </span>
+                    <p className="text-[11px] text-white/70 truncate">
+                      {produtoEditando.imagem?.startsWith("data:image")
+                        ? "Arquivo próprio convertido (Base64)"
+                        : produtoEditando.imagem || "Nenhuma imagem selecionada"}
+                    </p>
+                    <p className="text-[10px] text-white/40">
+                      Enquadramento automático proporcional no cardápio e no painel.
+                    </p>
+                  </div>
+                </div>
+
+                {/* MODO 1: UPLOAD DO DISPOSITIVO */}
+                {modoFoto === "upload" && (
+                  <div className="space-y-2">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="cursor-pointer group flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-amber-500/40 hover:border-amber-400 bg-amber-500/5 hover:bg-amber-500/10 p-5 text-center transition-all"
+                    >
+                      <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 group-hover:scale-110 transition-transform">
+                        {carregandoImagem ? (
+                          <Loader2 className="h-5 w-5 animate-spin text-amber-300" />
+                        ) : (
+                          <Upload className="h-5 w-5" />
+                        )}
+                      </div>
+                      <div>
+                        <span className="text-xs font-bold text-white block">
+                          {carregandoImagem
+                            ? "Otimizando e convertendo imagem..."
+                            : "Clique para escolher foto do computador ou celular"}
+                        </span>
+                        <span className="text-[10px] text-white/50 block mt-0.5">
+                          Suporta JPG, PNG, WEBP ou câmera (Conversão inteligente em Base64)
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* MODO 2: PRESETS */}
+                {modoFoto === "preset" && (
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] text-white/50 block">Selecione uma imagem padrão da despensa:</span>
+                    <div className="grid grid-cols-4 gap-2">
+                      {IMAGE_PRESETS &&
+                        IMAGE_PRESETS.map((preset) => (
+                          <button
+                            type="button"
+                            key={preset.id}
+                            onClick={() =>
+                              setProdutoEditando({ ...produtoEditando, imagem: preset.url })
+                            }
+                            className={`group relative rounded-xl overflow-hidden border-2 aspect-square transition-all ${
+                              produtoEditando.imagem === preset.url
+                                ? "border-amber-400 ring-2 ring-amber-400/40"
+                                : "border-white/10 opacity-70 hover:opacity-100"
+                            }`}
+                          >
+                            {preset.url ? (
+                              <img
+                                src={preset.url}
+                                alt={preset.label}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <div className="h-full w-full bg-white/5" />
+                            )}
+                            <span className="absolute inset-x-0 bottom-0 bg-black/70 text-[8px] font-bold text-white text-center py-0.5 truncate px-1">
+                              {preset.label}
+                            </span>
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* MODO 3: URL EXTERNA */}
+                {modoFoto === "url" && (
+                  <div className="space-y-1.5">
+                    <input
+                      type="text"
+                      value={produtoEditando.imagem || ""}
+                      onChange={(e) =>
+                        setProdutoEditando({ ...produtoEditando, imagem: e.target.value })
+                      }
+                      placeholder="Cole a URL da imagem (ex: https://site.com/foto.jpg)"
+                      className="w-full rounded-xl border border-white/20 bg-white/5 px-3 py-2 text-white text-xs focus:outline-hidden focus:border-amber-400"
+                    />
+                    <span className="text-[10px] text-white/40 block">
+                      Aceita links seguros HTTPS diretos para arquivos de imagem.
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="pt-2 flex gap-2">

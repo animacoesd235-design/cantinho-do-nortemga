@@ -22,13 +22,19 @@ export function ProductMedia({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(key(id));
-      if (raw) setMedia(JSON.parse(raw) as SavedMedia);
-    } catch {
-      /* ignora mídia inválida */
-    }
-  }, [id]);
+    const carregar = () => {
+      try {
+        const raw = localStorage.getItem(key(id));
+        if (raw) setMedia(JSON.parse(raw) as SavedMedia);
+        else setMedia(null);
+      } catch {
+        setMedia(null);
+      }
+    };
+    carregar();
+    window.addEventListener("cdn:products_updated", carregar);
+    return () => window.removeEventListener("cdn:products_updated", carregar);
+  }, [id, fallback]);
 
   const onFile = (file: File | undefined) => {
     if (!file) return;
