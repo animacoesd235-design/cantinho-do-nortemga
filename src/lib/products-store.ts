@@ -7,21 +7,16 @@ import {
 export interface Categoria {
   id: string;
   nome: string;
-  descricao?: string;
 }
 
 export const DEFAULT_CATEGORIAS: Categoria[] = [
   {
     id: "combos",
     nome: "Combos Especiais",
-    descricao:
-      "Kits completos em garrafas e potes lacrados. Receba os ingredientes frescos e monte o seu açaí tradicional do seu jeito, no capricho!",
   },
   {
     id: "avulsos",
     nome: "Produtos à Pronta Entrega",
-    descricao:
-      "Garrafas de açaí batido na hora, polpas legítimas e itens de empório artesanal.",
   },
 ];
 
@@ -75,7 +70,7 @@ export function saveCategories(categorias: Categoria[]): void {
   }
 }
 
-export function addCategory(nome: string, descricao?: string): Categoria {
+export function addCategory(nome: string): Categoria {
   const limpo = nome.trim();
   const slug =
     limpo
@@ -92,7 +87,6 @@ export function addCategory(nome: string, descricao?: string): Categoria {
   const nova: Categoria = {
     id: slug,
     nome: limpo,
-    descricao: descricao?.trim() || `Delícias artesanais selecionadas da categoria ${limpo}.`,
   };
 
   const atualizadas = [...current, nova];
