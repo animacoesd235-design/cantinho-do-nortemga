@@ -519,10 +519,10 @@ function CardProduto({
             alt={produto.nome}
             priority={priority}
           />
-          {/* Selos de Destaque e Economia Empilhados Verticalmente */}
-          {(produto.destaque || (produto.precoOriginal && economia > 0)) && (
-            <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-1.5 max-w-[calc(100%-1.5rem)] pointer-events-none">
-              {/* Selo de Destaque na Linha Superior */}
+          {/* Container Único Flexível com os Selos Empilhados Verticalmente */}
+          {(produto.destaque || economia > 0) && (
+            <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-1.5 max-w-[calc(100%-4.5rem)] pointer-events-none">
+              {/* Selo 1: Destaque na Linha Superior */}
               {produto.destaque && (
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-400 text-amber-950 px-2.5 sm:px-3 py-1 text-[10.5px] sm:text-[11px] font-black uppercase tracking-wider shadow-md border border-amber-300/80 backdrop-blur-md shrink-0">
                   <Sparkles className="h-3 w-3 text-amber-950 shrink-0" />
@@ -530,8 +530,8 @@ function CardProduto({
                 </span>
               )}
 
-              {/* Selo de Economia Logo Abaixo */}
-              {produto.precoOriginal && economia > 0 && (
+              {/* Selo 2: Economia Logo Abaixo (Sem Absolute Individual) */}
+              {economia > 0 && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-600/95 text-white px-2.5 sm:px-3 py-1 text-[10.5px] sm:text-[11px] font-black uppercase tracking-wider shadow-md border border-emerald-400/40 backdrop-blur-md shrink-0">
                   Economia de {brl(economia)}
                 </span>
