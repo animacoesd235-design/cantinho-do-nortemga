@@ -259,7 +259,7 @@ function Cardapio() {
       </nav>
 
       {/* Grid de Produtos Dinâmico por Categoria */}
-      <main className="mx-auto max-w-4xl px-4 pt-8 sm:pt-10">
+      <main className="mx-auto max-w-4xl px-4 pt-4 sm:pt-6">
         {categorias.map((cat) => {
           if (aba !== cat.id) return null;
 
@@ -273,16 +273,7 @@ function Cardapio() {
           const isComboSection = cat.id === "combos";
 
           return (
-            <Secao
-              key={cat.id}
-              titulo={cat.nome}
-              subtitulo={
-                cat.descricao ||
-                (isComboSection
-                  ? "Kits completos em garrafas e potes lacrados. Receba os ingredientes frescos e monte o seu açaí tradicional do seu jeito, no capricho!"
-                  : "Garrafas de açaí batido na hora, polpas legítimas e itens de empório artesanal.")
-              }
-            >
+            <section key={cat.id} className="fade-up mb-10">
               {prods.length === 0 ? (
                 <div className="text-center py-12 rounded-3xl bg-secondary/30 border border-border/40 text-muted-foreground">
                   <p className="text-sm font-medium">Nenhum produto disponível nesta categoria no momento.</p>
@@ -301,7 +292,7 @@ function Cardapio() {
                   ))}
                 </div>
               )}
-            </Secao>
+            </section>
           );
         })}
       </main>
@@ -492,30 +483,6 @@ function HeroSection() {
         </p>
       </div>
     </header>
-  );
-}
-
-function Secao({
-  titulo,
-  subtitulo,
-  children,
-}: {
-  titulo: string;
-  subtitulo: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="fade-up mb-10 pt-2 sm:pt-3">
-      <div className="mb-6 space-y-1 sm:space-y-1.5">
-        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-forest font-display leading-tight">
-          {titulo}
-        </h2>
-        <p className="text-xs sm:text-sm md:text-base text-muted-foreground leading-relaxed">
-          {subtitulo}
-        </p>
-      </div>
-      {children}
-    </section>
   );
 }
 
