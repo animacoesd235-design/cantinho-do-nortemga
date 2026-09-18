@@ -519,7 +519,7 @@ function CardProduto({
     isCombo ||
     produto.id === "acai-litro" ||
     produto.nome.toLowerCase().includes("açaí") ||
-    produto.descricao.toLowerCase().includes("açaí");
+    produto.nome.toLowerCase().includes("acai");
 
   return (
     <article className="group relative flex flex-col justify-between overflow-hidden rounded-3xl bg-card border border-border/80 shadow-[var(--shadow-card)] hover:shadow-2xl hover:border-gold/50 transition-all duration-300">
