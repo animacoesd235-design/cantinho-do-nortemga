@@ -238,7 +238,7 @@ function Cardapio() {
       )}
 
       {/* Abas de Navegação Fluidas em Pílula Centralizada */}
-      <nav className="sticky top-0 z-30 border-b border-border/70 bg-background/90 py-2 sm:py-2.5 backdrop-blur-xl shadow-xs">
+      <nav className="sticky top-0 z-30 border-b border-border/70 bg-background/95 py-2.5 sm:py-3 backdrop-blur-xl shadow-xs">
         <div className="mx-auto flex max-w-2xl justify-center px-4 overflow-x-auto no-scrollbar">
           <div className="inline-flex items-center rounded-full bg-secondary/80 p-1 border border-border shadow-inner max-w-full overflow-x-auto no-scrollbar">
             {categorias.map((a) => (
@@ -259,7 +259,7 @@ function Cardapio() {
       </nav>
 
       {/* Grid de Produtos Dinâmico por Categoria */}
-      <main className="mx-auto max-w-4xl px-4 pt-4 sm:pt-6">
+      <main className="mx-auto max-w-4xl px-4 pt-8 sm:pt-10">
         {categorias.map((cat) => {
           if (aba !== cat.id) return null;
 
@@ -505,10 +505,14 @@ function Secao({
   children: React.ReactNode;
 }) {
   return (
-    <section className="fade-up mb-10">
-      <div className="mb-6">
-        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-forest font-display">{titulo}</h2>
-        <p className="mt-1.5 text-sm sm:text-base text-muted-foreground">{subtitulo}</p>
+    <section className="fade-up mb-10 pt-2 sm:pt-3">
+      <div className="mb-6 space-y-1 sm:space-y-1.5">
+        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-forest font-display leading-tight">
+          {titulo}
+        </h2>
+        <p className="text-xs sm:text-sm md:text-base text-muted-foreground leading-relaxed">
+          {subtitulo}
+        </p>
       </div>
       {children}
     </section>
