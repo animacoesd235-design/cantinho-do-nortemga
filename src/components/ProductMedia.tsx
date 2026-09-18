@@ -8,12 +8,16 @@ const key = (id: string) => `cdn-midia:${id}`;
 
 export function ProductMedia({
   id,
-  fallback,
+  image,
+  imagem,
+  fallback = "",
   alt,
   priority = false,
 }: {
-  id: string;
-  fallback: string;
+  id?: string;
+  image?: string;
+  imagem?: string;
+  fallback?: string;
   alt: string;
   priority?: boolean | undefined;
 }) {
@@ -87,7 +91,7 @@ export function ProductMedia({
         />
       ) : (
         <img
-          src={media?.data ?? fallback}
+          src={media?.data || image || imagem || fallback}
           alt={alt}
           width={1024}
           height={768}

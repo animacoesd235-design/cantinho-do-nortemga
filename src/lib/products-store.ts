@@ -21,6 +21,7 @@ export const DEFAULT_CATEGORIAS: Categoria[] = [
 ];
 
 export interface CustomProduct extends Produto {
+  image?: string;
   categoria: string;
   ativo?: boolean;
 }
@@ -123,6 +124,14 @@ function sanitizeProduct(p: any, defaultCat: string = "avulsos"): CustomProduct 
   if (cat === "combo") cat = "combos";
   if (cat === "avulso") cat = "avulsos";
 
+  const imagemUrl =
+    p?.image ||
+    p?.imagem ||
+    p?.imageUrl ||
+    p?.foto ||
+    IMAGE_PRESETS[0]?.url ||
+    "";
+
   return {
     id: String(p?.id || "prod-" + Math.random().toString(36).substring(2, 8)),
     nome: String(p?.nome || "Item Artesanal"),
@@ -135,7 +144,8 @@ function sanitizeProduct(p: any, defaultCat: string = "avulsos"): CustomProduct 
         ? Number(p.precoOriginal)
         : undefined,
     economia: typeof p?.economia === "number" && !isNaN(p.economia) ? p.economia : undefined,
-    imagem: p?.imagem || IMAGE_PRESETS[0]?.url || "",
+    imagem: imagemUrl,
+    image: imagemUrl,
     destaque: p?.destaque ? String(p.destaque) : "",
     categoria: cat,
     ativo: p?.ativo !== false,

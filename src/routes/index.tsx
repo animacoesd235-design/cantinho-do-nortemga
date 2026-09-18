@@ -17,7 +17,6 @@ import {
   UtensilsCrossed,
 } from "lucide-react";
 
-import { ProductMedia } from "@/components/ProductMedia";
 import { ModalUpsell } from "@/components/ModalUpsell";
 import { ModalCheckout } from "@/components/ModalCheckout";
 import { ModalRastreio } from "@/components/ModalRastreio";
@@ -509,16 +508,45 @@ function CardProduto({
     produto.nome.toLowerCase().includes("açaí") ||
     produto.nome.toLowerCase().includes("acai");
 
+  // Puxa dinamicamente a propriedade da imagem cadastrada no admin (product.image ou product.imagem)
+  const imagemSrc =
+    (produto as any).image ||
+    produto.imagem ||
+    (produto as any).imageUrl ||
+    (produto as any).foto ||
+    "";
+
   return (
     <article className="group relative flex flex-col justify-between overflow-hidden rounded-3xl bg-card border border-border/80 shadow-[var(--shadow-card)] hover:shadow-2xl hover:border-gold/50 transition-all duration-300">
       <div>
         <div className="relative">
-          <ProductMedia
-            id={produto.id}
-            fallback={produto.imagem}
-            alt={produto.nome}
-            priority={priority}
-          />
+          {/* Mídia do Produto com tag <img> puxando dinamicamente a foto do admin */}
+          <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-3xl bg-sand-deep/40 flex items-center justify-center">
+            {imagemSrc?.startsWith("data:video") || imagemSrc?.endsWith(".mp4") || imagemSrc?.endsWith(".webm") ? (
+              <video
+                src={imagemSrc}
+                autoPlay
+                loop
+                muted
+                playsInline
+                preload="metadata"
+                className="h-full w-full object-contain p-2 transition-transform duration-500 ease-out group-hover:scale-105"
+              />
+            ) : (
+              <img
+                src={imagemSrc}
+                alt={produto.nome}
+                width={1024}
+                height={768}
+                loading={priority ? "eager" : "lazy"}
+                decoding="async"
+                className="h-full w-full object-contain p-2 transition-transform duration-500 ease-out group-hover:scale-105"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.opacity = "0.7";
+                }}
+              />
+            )}
+          </div>
           {/* Container Único Flexível com os Selos Empilhados Verticalmente */}
           {(produto.destaque || economia > 0) && (
             <div className="absolute left-3 top-3 z-10 flex flex-col items-start gap-1.5 max-w-[calc(100%-4.5rem)] pointer-events-none">

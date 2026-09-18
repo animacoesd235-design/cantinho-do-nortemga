@@ -63,7 +63,7 @@ export function ModalUpsell({
         <div className="p-4 sm:p-5 bg-background/50 border-b border-border/50 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <img
-              src={produto.imagem}
+              src={(produto as any).image || produto.imagem || ""}
               alt={produto.nome}
               className="h-14 w-14 rounded-2xl object-contain p-1 bg-sand-deep/40 border border-border/80 shrink-0"
             />
