@@ -363,11 +363,11 @@ function BarraSuperiorTopo({ status }: { status: StoreStatusResult }) {
     <aside
       role="region"
       aria-label="Status de funcionamento e aviso de lote diário"
-      className="relative z-40 overflow-hidden bg-[#070c09] text-white border-b border-white/10 px-3 py-1.5 shadow-2xs"
+      className="relative z-40 bg-[#070c09] text-white border-b border-white/10 px-3 py-2 sm:py-1.5 shadow-2xs"
     >
-      <div className="relative mx-auto flex max-w-5xl items-center justify-between gap-2.5 text-xs">
+      <div className="relative mx-auto flex max-w-5xl flex-col sm:flex-row items-center justify-between gap-1.5 sm:gap-3 text-xs">
         {/* Selo de Status em Pílula Sutil, Compacta e Dinâmica */}
-        <div className="shrink-0">
+        <div className="shrink-0 flex items-center justify-center">
           {status.isOpen ? (
             <span
               className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-300 shadow-2xs backdrop-blur-md transition-all tracking-wide"
@@ -408,22 +408,19 @@ function BarraSuperiorTopo({ status }: { status: StoreStatusResult }) {
           )}
         </div>
 
-        {/* Lote Diário / Gatilho de Escassez Compacto */}
-        <div className="flex items-center gap-1.5 text-[11px] text-amber-200/90 truncate justify-end">
-          <span className="relative flex h-1.5 w-1.5 shrink-0">
+        {/* Lote Diário / Aviso Completo sem Cortes */}
+        <div className="flex items-center justify-center sm:justify-end gap-1.5 text-[11px] sm:text-xs text-amber-200/90 text-center sm:text-right">
+          <span className="relative flex h-1.5 w-1.5 shrink-0 hidden sm:inline-flex">
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-amber-400" />
           </span>
-          <p className="truncate font-medium text-white/90 text-[11px] sm:text-xs">
+          <p className="font-medium text-white/95 leading-snug">
             <strong className="font-bold text-amber-300">
               🌿 Lote artesanal:
             </strong>{" "}
-            <span className="hidden sm:inline">
-              Restam poucas garrafas para entrega hoje em Maringá!
-            </span>
-            <span className="sm:hidden">Poucas garrafas hoje</span>
+            Restam poucas garrafas para entrega hoje em Maringá!
           </p>
-          <span className="hidden md:inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] uppercase font-black tracking-wider text-amber-300 shrink-0">
+          <span className="hidden lg:inline-flex items-center rounded-full bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.2 text-[9px] uppercase font-black tracking-wider text-amber-300 shrink-0">
             Últimas Garrafas
           </span>
         </div>
