@@ -113,19 +113,25 @@ function Cardapio() {
       }
     };
 
-    // Executa no arranque e fica à escuta da nuvem
     sincronizarTudo();
 
     const handleUpdate = () => {
       sincronizarTudo();
     };
-    
+
     window.addEventListener('products_updated', handleUpdate);
     window.addEventListener('storage', handleUpdate);
+    window.addEventListener("focus", sincronizarTudo);
+    window.addEventListener("visibilitychange", sincronizarTudo);
+    
+    const intervalTimer = setInterval(sincronizarTudo, 2000);
 
     return () => {
       window.removeEventListener('products_updated', handleUpdate);
       window.removeEventListener('storage', handleUpdate);
+      window.removeEventListener("focus", sincronizarTudo);
+      window.removeEventListener("visibilitychange", sincronizarTudo);
+      clearInterval(intervalTimer);
     };
   }, []);
 
