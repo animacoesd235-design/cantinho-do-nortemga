@@ -102,6 +102,7 @@ function Cardapio() {
   const [storeStatus, setStoreStatus] = useState<StoreStatusResult>(() => checkStoreOpenStatus());
 
   useEffect(() => {
+    useEffect(() => {
     const sincronizarTudo = () => {
       try {
         const prods = getCustomProducts();
@@ -139,25 +140,6 @@ function Cardapio() {
       clearInterval(intervalTimer);
     };
   }, []);
-    // Sincroniza imediatamente no cliente para puxar as imagens salvas no admin
-    sincronizarTudo();
-
-    const cleanupProds = onProductsUpdate(sincronizarTudo);
-    const cleanupCats = onCategoriesUpdate(sincronizarTudo);
-
-    window.addEventListener("focus", sincronizarTudo);
-    window.addEventListener("visibilitychange", sincronizarTudo);
-    const intervalTimer = setInterval(sincronizarTudo, 2000);
-
-    return () => {
-      cleanupProds();
-      cleanupCats();
-      clearInterval(intervalTimer);
-      window.removeEventListener("focus", sincronizarTudo);
-      window.removeEventListener("visibilitychange", sincronizarTudo);
-    };
-  }, []);
-
   useEffect(() => {
     const checar = () => setStoreStatus(checkStoreOpenStatus());
     const cleanup = onStoreSettingsUpdate(checar);
