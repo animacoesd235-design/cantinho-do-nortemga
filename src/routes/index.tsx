@@ -51,6 +51,7 @@ import {
 } from "@/lib/orders";
 
 export const Route = createFileRoute("/")({
+  ssr: false,
   head: () => ({
     meta: [
       { title: "Cantinho do Norte — Kits e Garrafas de Açaí em Maringá (100% Delivery)" },

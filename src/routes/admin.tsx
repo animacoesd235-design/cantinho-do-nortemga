@@ -79,6 +79,7 @@ import {
 } from "@/lib/store-settings";
 
 export const Route = createFileRoute("/admin")({
+  ssr: false,
   head: () => ({
     meta: [{ title: "Painel Administrativo — Cantinho do Norte" }],
   }),

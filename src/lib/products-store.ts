@@ -130,13 +130,18 @@ function sanitizeProduct(p: any, defaultCat: string = "avulsos"): CustomProduct 
   if (cat === "combo") cat = "combos";
   if (cat === "avulso") cat = "avulsos";
 
+  // Busca fallback correspondente ao ID caso a imagem esteja ausente
+  const originalProd =
+    (Array.isArray(defaultCombos) ? defaultCombos : []).find((d) => d.id === p?.id) ||
+    (Array.isArray(defaultAvulsos) ? defaultAvulsos : []).find((d) => d.id === p?.id);
+  const fallbackImg = originalProd?.imagem || (IMAGE_PRESETS && IMAGE_PRESETS[0]?.url) || "";
+
   const imagemUrl =
     p?.image ||
     p?.imagem ||
     p?.imageUrl ||
     p?.foto ||
-    IMAGE_PRESETS[0]?.url ||
-    "";
+    fallbackImg;
 
   return {
     id: String(p?.id || "prod-" + Math.random().toString(36).substring(2, 8)),
@@ -181,13 +186,31 @@ export function getCustomProducts(): {
   }
 
   try {
+    // 1. O localStorage é a fonte primária e obrigatória
     let raw = localStorage.getItem(STORAGE_KEY);
-    // Migração transparente de chaves legadas caso ainda não exista em cantinho_norte_products
+
+    // 2. Migração transparente de chaves legadas caso ainda não exista em cantinho_norte_products
     if (!raw) {
       raw = localStorage.getItem("cdn_produtos_v2") || localStorage.getItem("cdn_produtos_v1");
+      if (raw) {
+        try {
+          const parsedLegacy = JSON.parse(raw);
+          const list = Array.isArray(parsedLegacy) ? parsedLegacy : (parsedLegacy?.todos || []);
+          if (list && list.length > 0) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+          }
+        } catch {}
+      }
     }
-    // Se o localStorage estiver vazio, utiliza a lista inicial de fábrica como padrão
+
+    // 3. Se o localStorage estiver totalmente vazio, utiliza a lista inicial de fábrica como último recurso absoluto
+    // e persiste imediatamente no localStorage para garantir que a partir deste momento ela passe a ser gerenciada lá
     if (!raw) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(def.todos));
+      } catch (e) {
+        console.warn("Não foi possível persistir lista padrão inicial no localStorage:", e);
+      }
       return def;
     }
 
@@ -201,10 +224,15 @@ export function getCustomProducts(): {
       rawList = [...(parsed.combos || []), ...(parsed.avulsos || [])];
     }
 
+    // Se o array salvo estiver vazio, também recai para o padrão como último recurso e persiste
     if (rawList.length === 0) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(def.todos));
+      } catch {}
       return def;
     }
 
+    // 4. Mapeia e sanitiza rigorosamente cada produto garantindo que fotos cadastradas no admin prevaleçam
     const todos = rawList.map((p: any) => sanitizeProduct(p, p?.categoria));
     const combos = todos.filter((p) => p.categoria === "combo" || p.categoria === "combos");
     const avulsos = todos.filter((p) => p.categoria !== "combo" && p.categoria !== "combos");
@@ -232,19 +260,22 @@ export function saveAllProducts(data: {
     const combos = todos.filter((p) => p.categoria === "combo" || p.categoria === "combos");
     const avulsos = todos.filter((p) => p.categoria !== "combo" && p.categoria !== "combos");
 
-    // Grava na chave unificada 'cantinho_norte_products' no localStorage
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-
-    // Mantém compatibilidade com chave legada
+    // Grava na chave unificada e primária 'cantinho_norte_products' no localStorage
     try {
-      localStorage.setItem(
-        "cdn_produtos_v2",
-        JSON.stringify({
-          combos: combos.map((c) => sanitizeProduct(c, "combos")),
-          avulsos: avulsos.map((a) => sanitizeProduct(a, "avulsos")),
-          todos,
-        })
-      );
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+    } catch (quotaErr) {
+      console.warn("Possível limite de cota no localStorage, limpando dados legados...", quotaErr);
+      try {
+        localStorage.removeItem("cdn_produtos_v1");
+        localStorage.removeItem("cdn_produtos_v2");
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+      } catch (retryErr) {
+        console.error("Erro crítico ao salvar no localStorage:", retryErr);
+      }
+    }
+
+    // Grava timestamp de sincronização
+    try {
       localStorage.setItem("cantinho_norte_sync_time", String(Date.now()));
     } catch {}
 

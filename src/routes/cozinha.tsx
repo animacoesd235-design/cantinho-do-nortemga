@@ -40,6 +40,7 @@ import {
 } from "@/lib/orders";
 
 export const Route = createFileRoute("/cozinha")({
+  ssr: false,
   head: () => ({
     meta: [{ title: "Painel da Cozinha (KDS) — Cantinho do Norte" }],
   }),
