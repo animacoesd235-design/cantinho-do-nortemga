@@ -4,6 +4,13 @@ import {
   type Produto,
 } from "./menu-data";
 import kitCompleto from "@/assets/kit-completo-v2.jpg";
+import combo1lFarinha from "@/assets/combo-1l-farinha-v2.jpg";
+import combo2lFarinha from "@/assets/combo-2l-farinha-v2.jpg";
+import combo3lFarinha from "@/assets/combo-3l-farinha-v2.jpg";
+import comboFarinhaCamarao from "@/assets/combo-farinha-camarao-v2.jpg";
+import comboTapiocaCamarao from "@/assets/combo-tapioca-camarao-v2.jpg";
+import comboFarinhaConserva from "@/assets/combo-farinha-conserva-v2.jpg";
+import comboFarinhaCharque from "@/assets/combo-farinha-charque-v2.jpg";
 import comboPara from "@/assets/combo-para-v2.jpg";
 import bowlPuro from "@/assets/bowl-puro-v2.jpg";
 import farinhaAgua from "@/assets/farinha-agua-v2.jpg";
@@ -35,8 +42,8 @@ export interface CustomProduct extends Produto {
   ativo?: boolean;
 }
 
-export const STORAGE_VERSION = "v3";
-export const PRODUCTS_STORAGE_KEY = "cantinho_norte_products_v3";
+export const STORAGE_VERSION = "v4";
+export const PRODUCTS_STORAGE_KEY = "cantinho_norte_products_v4";
 export const STORAGE_KEY = PRODUCTS_STORAGE_KEY;
 export const STORE_VERSION_KEY = "cantinho_norte_products_version";
 const CATEGORIES_KEY = "cdn_categorias_v2";
@@ -45,6 +52,7 @@ const LEGACY_STORAGE_KEYS = [
   "cantinho_norte_products",
   "cantinho_norte_products_v1",
   "cantinho_norte_products_v2",
+  "cantinho_norte_products_v3",
   "cdn_produtos_v1",
   "cdn_produtos_v2",
 ];
@@ -56,8 +64,15 @@ const syncChannel =
 
 export const IMAGE_PRESETS = [
   { id: "kit-completo", label: "Kit Completo (Açaí + Farinhas)", url: kitCompleto },
+  { id: "combo-1l-farinha", label: "Combo 1L Açaí + 1L Farinha", url: combo1lFarinha },
+  { id: "combo-2l-farinha", label: "Combo 2L Açaí + 1L Farinha", url: combo2lFarinha },
+  { id: "combo-3l-farinha", label: "Combo 3L Açaí + 2L Farinha", url: combo3lFarinha },
+  { id: "combo-farinha-camarao", label: "Combo Açaí + Farinha + Camarão", url: comboFarinhaCamarao },
+  { id: "combo-tapioca-camarao", label: "Combo Açaí + Tapioca + Camarão", url: comboTapiocaCamarao },
+  { id: "combo-farinha-conserva", label: "Combo Açaí + Farinha + Conserva", url: comboFarinhaConserva },
+  { id: "combo-farinha-charque", label: "Combo Açaí + Farinha + Charque", url: comboFarinhaCharque },
   { id: "combo-para", label: "Kit / Combo Amazônico", url: comboPara },
-  { id: "bowl-puro", label: "Tigela de Açaí Puro", url: bowlPuro },
+  { id: "bowl-puro", label: "Açaí Batido Puro (1 Litro)", url: bowlPuro },
   { id: "farinha-agua", label: "Farinha D'água / Mandioca", url: farinhaAgua },
   { id: "farinha-tapioca", label: "Farinha de Tapioca", url: farinhaTapioca },
   { id: "camarao-seco", label: "Camarão Salgado", url: camaraoSeco },
@@ -164,16 +179,17 @@ function sanitizeProduct(p: any, defaultCat: string = "avulsos"): CustomProduct 
     fallbackImg;
 
   // Se o item for um dos produtos padrão e não for upload próprio (data: ou blob:),
-  // garante atualização instantânea para o asset oficial -v2 caso esteja com caminho antigo
+  // garante atualização instantânea para o asset oficial do catálogo
   if (
     originalProd &&
     typeof imagemCandidate === "string" &&
     !imagemCandidate.startsWith("data:") &&
     !imagemCandidate.startsWith("blob:") &&
-    !imagemCandidate.startsWith("http") &&
-    !imagemCandidate.includes("-v2")
+    !imagemCandidate.startsWith("http")
   ) {
-    imagemCandidate = originalProd.imagem || originalProd.image || fallbackImg;
+    if (imagemCandidate !== originalProd.imagem && imagemCandidate !== originalProd.image) {
+      imagemCandidate = originalProd.imagem || originalProd.image || fallbackImg;
+    }
   }
 
   const imagemUrl = imagemCandidate;
@@ -222,27 +238,34 @@ export function getCustomProducts(): {
 
   try {
     // 0. Versionamento de cache obrigatório:
-    // Se a versão atual não for 'v3', descarta automaticamente o localStorage antigo (chave cantinho_norte_products e anteriores)
-    // para forçar a leitura imediata da nova versão com as imagens -v2
+    // Se a versão atual não for STORAGE_VERSION ('v4'), descarta automaticamente o localStorage antigo
+    // para forçar a leitura imediata da nova versão com as fotos oficiais do catálogo
     const storedVersion = localStorage.getItem(STORE_VERSION_KEY);
     if (storedVersion !== STORAGE_VERSION) {
       // Preserva eventuais produtos adicionais criados no admin pelo usuário (não padrão)
       let customProductsToKeep: any[] = [];
-      try {
-        const oldRaw = localStorage.getItem("cantinho_norte_products");
-        if (oldRaw) {
-          const parsedOld = JSON.parse(oldRaw);
-          const listOld = Array.isArray(parsedOld)
-            ? parsedOld
-            : Array.isArray(parsedOld?.todos)
-            ? parsedOld.todos
-            : [];
-          const isDefaultId = (id: string) =>
-            (Array.isArray(defaultCombos) && defaultCombos.some((c) => c.id === id)) ||
-            (Array.isArray(defaultAvulsos) && defaultAvulsos.some((a) => a.id === id));
-          customProductsToKeep = listOld.filter((item: any) => item?.id && !isDefaultId(item.id));
-        }
-      } catch {}
+      const keysToScan = ["cantinho_norte_products", "cantinho_norte_products_v3", ...LEGACY_STORAGE_KEYS];
+      for (const oldKey of keysToScan) {
+        try {
+          const oldRaw = localStorage.getItem(oldKey);
+          if (oldRaw) {
+            const parsedOld = JSON.parse(oldRaw);
+            const listOld = Array.isArray(parsedOld)
+              ? parsedOld
+              : Array.isArray(parsedOld?.todos)
+              ? parsedOld.todos
+              : [];
+            const isDefaultId = (id: string) =>
+              (Array.isArray(defaultCombos) && defaultCombos.some((c) => c.id === id)) ||
+              (Array.isArray(defaultAvulsos) && defaultAvulsos.some((a) => a.id === id));
+            for (const item of listOld) {
+              if (item?.id && !isDefaultId(item.id) && !customProductsToKeep.some((x) => x.id === item.id)) {
+                customProductsToKeep.push(item);
+              }
+            }
+          }
+        } catch {}
+      }
 
       // Descarta imediatamente o localStorage antigo
       for (const legacyKey of LEGACY_STORAGE_KEYS) {
@@ -251,12 +274,12 @@ export function getCustomProducts(): {
         } catch {}
       }
 
-      // Marca a versão v3 como ativa
+      // Marca a versão v4 como ativa
       try {
         localStorage.setItem(STORE_VERSION_KEY, STORAGE_VERSION);
       } catch {}
 
-      // Inicializa a nova versão cantinho_norte_products_v3 com as fotos -v2 oficiais
+      // Inicializa a nova versão cantinho_norte_products_v4 com as fotos oficiais do catálogo
       const def = getDefaults();
       const todosIniciais = [
         ...def.todos,
@@ -265,7 +288,7 @@ export function getCustomProducts(): {
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(todosIniciais));
       } catch (e) {
-        console.warn("Não foi possível inicializar localStorage v3 com dados padrão:", e);
+        console.warn("Não foi possível inicializar localStorage com dados padrão:", e);
       }
 
       const combos = todosIniciais.filter((p) => p.categoria === "combo" || p.categoria === "combos");

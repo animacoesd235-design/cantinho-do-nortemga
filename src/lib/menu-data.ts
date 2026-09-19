@@ -1,4 +1,11 @@
 import kitCompleto from "../assets/kit-completo-v2.jpg";
+import combo1lFarinha from "../assets/combo-1l-farinha-v2.jpg";
+import combo2lFarinha from "../assets/combo-2l-farinha-v2.jpg";
+import combo3lFarinha from "../assets/combo-3l-farinha-v2.jpg";
+import comboFarinhaCamarao from "../assets/combo-farinha-camarao-v2.jpg";
+import comboTapiocaCamarao from "../assets/combo-tapioca-camarao-v2.jpg";
+import comboFarinhaConserva from "../assets/combo-farinha-conserva-v2.jpg";
+import comboFarinhaCharque from "../assets/combo-farinha-charque-v2.jpg";
 import comboPara from "../assets/combo-para-v2.jpg";
 import acaiCamarao from "../assets/acai-camarao-v2.jpg";
 import bowlPuro from "../assets/bowl-puro-v2.jpg";
@@ -39,8 +46,8 @@ export const combos: Produto[] = [
     preco: 53,
     precoOriginal: 57,
     economia: 4,
-    imagem: comboPara,
-    image: comboPara,
+    imagem: combo1lFarinha,
+    image: combo1lFarinha,
   },
   {
     id: "combo-2l-farinha",
@@ -49,8 +56,8 @@ export const combos: Produto[] = [
     preco: 85,
     precoOriginal: 94,
     economia: 9,
-    imagem: comboPara,
-    image: comboPara,
+    imagem: combo2lFarinha,
+    image: combo2lFarinha,
   },
   {
     id: "combo-3l-farinha",
@@ -59,8 +66,8 @@ export const combos: Produto[] = [
     preco: 131,
     precoOriginal: 151,
     economia: 20,
-    imagem: comboPara,
-    image: comboPara,
+    imagem: combo3lFarinha,
+    image: combo3lFarinha,
     destaque: "Família",
   },
   {
@@ -70,8 +77,8 @@ export const combos: Produto[] = [
     preco: 70,
     precoOriginal: 82,
     economia: 12,
-    imagem: acaiCamarao,
-    image: acaiCamarao,
+    imagem: comboFarinhaCamarao,
+    image: comboFarinhaCamarao,
     destaque: "Tradição",
   },
   {
@@ -81,8 +88,8 @@ export const combos: Produto[] = [
     preco: 68,
     precoOriginal: 82,
     economia: 14,
-    imagem: acaiCamarao,
-    image: acaiCamarao,
+    imagem: comboTapiocaCamarao,
+    image: comboTapiocaCamarao,
   },
   {
     id: "combo-farinha-conserva",
@@ -92,8 +99,8 @@ export const combos: Produto[] = [
     preco: 68,
     precoOriginal: 77,
     economia: 9,
-    imagem: comboPara,
-    image: comboPara,
+    imagem: comboFarinhaConserva,
+    image: comboFarinhaConserva,
   },
   {
     id: "combo-farinha-charque",
@@ -103,8 +110,8 @@ export const combos: Produto[] = [
     preco: 68,
     precoOriginal: 78,
     economia: 10,
-    imagem: comboPara,
-    image: comboPara,
+    imagem: comboFarinhaCharque,
+    image: comboFarinhaCharque,
   },
 ];
 
@@ -123,8 +130,8 @@ export const avulsos: Produto[] = [
     nome: "Charque Regional do Amapá (1 kg)",
     descricao: "Charque selecionado do Amapá, sabor autêntico do norte.",
     preco: 90,
-    imagem: comboPara,
-    image: comboPara,
+    imagem: comboFarinhaCharque,
+    image: comboFarinhaCharque,
   },
   {
     id: "camarao-salgado",
@@ -139,8 +146,8 @@ export const avulsos: Produto[] = [
     nome: "Conserva de Carne (Unidade)",
     descricao: "Carne em conserva artesanal, tradição da despensa amazônica.",
     preco: 20,
-    imagem: comboPara,
-    image: comboPara,
+    imagem: comboFarinhaConserva,
+    image: comboFarinhaConserva,
   },
   {
     id: "polpa-cupuacu",
