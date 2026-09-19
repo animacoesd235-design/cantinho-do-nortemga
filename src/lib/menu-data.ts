@@ -1,11 +1,11 @@
-import acaiCamarao from "@/assets/acai-camarao.jpg";
-import bowlPuro from "@/assets/bowl-puro.jpg";
-import acaiCupuacu from "@/assets/acai-cupuacu.jpg";
-import comboPara from "@/assets/combo-para.jpg";
-import farinhaAgua from "@/assets/farinha-agua.jpg";
-import farinhaTapioca from "@/assets/farinha-tapioca.jpg";
-import camaraoSeco from "@/assets/camarao-seco.jpg";
-import tucupi from "@/assets/tucupi.jpg";
+import acaiCamarao from "../assets/acai-camarao.jpg";
+import bowlPuro from "../assets/bowl-puro.jpg";
+import acaiCupuacu from "../assets/acai-cupuacu.jpg";
+import comboPara from "../assets/combo-para.jpg";
+import farinhaAgua from "../assets/farinha-agua.jpg";
+import farinhaTapioca from "../assets/farinha-tapioca.jpg";
+import camaraoSeco from "../assets/camarao-seco.jpg";
+import tucupi from "../assets/tucupi.jpg";
 
 export type Produto = {
   id: string;
