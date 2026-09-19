@@ -576,11 +576,14 @@ export function onProductsUpdate(callback: () => void): () => void {
     }
   };
 }
-// Sincronização forçada no arranque para telemóveis
+// Sincronização forçada no arranque com atualização visual imediata
 if (typeof window !== 'undefined' && typeof isCloudConfigured === 'function' && isCloudConfigured()) {
   fetchCloudProducts().then(cloudData => {
     if (cloudData && cloudData.length > 0 && typeof saveAllProducts === 'function') {
       saveAllProducts(cloudData);
+      // Força o ecrã do telemóvel a atualizar os produtos instantaneamente
+      window.dispatchEvent(new Event('products_updated'));
+      window.dispatchEvent(new Event('storage'));
     }
   }).catch(err => console.error("Erro ao sincronizar no arranque:", err));
 }
