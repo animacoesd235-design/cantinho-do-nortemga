@@ -113,6 +113,22 @@ function Cardapio() {
       }
     };
 
+    // Executa no arranque e fica à escuta da nuvem
+    sincronizarTudo();
+
+    const handleUpdate = () => {
+      sincronizarTudo();
+    };
+    
+    window.addEventListener('products_updated', handleUpdate);
+    window.addEventListener('storage', handleUpdate);
+
+    return () => {
+      window.removeEventListener('products_updated', handleUpdate);
+      window.removeEventListener('storage', handleUpdate);
+    };
+  }, []);
+
     // Sincroniza imediatamente no cliente para puxar as imagens salvas no admin
     sincronizarTudo();
 
