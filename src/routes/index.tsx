@@ -378,7 +378,8 @@ function Cardapio() {
   );
 }
 
-function BarraSuperiorTopo({ status }: { status: StoreStatusResult }) {
+function BarraSuperiorTopo(props: { status: StoreStatusResult }) {
+  const { status } = props;
   const isPausa = status.reason === "manual_pause";
 
   const textoFechado = isPausa
