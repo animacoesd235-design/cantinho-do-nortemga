@@ -384,9 +384,9 @@ function BarraSuperiorTopo({ status }: { status: StoreStatusResult }) {
   const textoFechado = isPausa
     ? "🔴 Fechado / Pausado"
     : status.badgeText.toLowerCase().includes("abre")
-    ? `🔴 Fechado • ${status.badgeText}`
+    ? `🟢 Aberto • ${status.badgeText}`
     : status.badgeText.toLowerCase().includes("fechado")
-    ? `🔴 ${status.badgeText}`
+    ? `${status.badgeText}`
     : `🔴 Fechado • ${status.badgeText}`;
 
   return (
