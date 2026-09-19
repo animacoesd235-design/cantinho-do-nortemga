@@ -78,14 +78,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { title: "Cantinho do Norte — Açaí & Empório Artesanal (100% Delivery)" },
+      { name: "description", content: "Kits de açaí, farinhas artesanais, camarão, tucupi e empório amazônico em Maringá/PR. Atendimento 100% Delivery." },
+      { httpEquiv: "Cache-Control", content: "no-cache, no-store, must-revalidate" },
+      { httpEquiv: "Pragma", content: "no-cache" },
+      { httpEquiv: "Expires", content: "0" },
+      { property: "og:title", content: "Cantinho do Norte — Açaí e Empório" },
+      { property: "og:description", content: "Garrafas de açaí puro e kits lacrados para montar em casa. 100% Delivery em Maringá/PR." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:site", content: "@Lovable" },
     ],
     links: [
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -109,9 +110,33 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
         <HeadContent />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(function(registrations) {
+                      for (var i = 0; i < registrations.length; i++) {
+                        registrations[i].unregister();
+                      }
+                    });
+                  }
+                  if ('caches' in window) {
+                    caches.keys().then(function(names) {
+                      for (var j = 0; j < names.length; j++) {
+                        caches.delete(names[j]);
+                      }
+                    });
+                  }
+                } catch(e) {}
+              })();
+            `,
+          }}
+        />
       </head>
       <body>
         {children}
@@ -123,6 +148,32 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // 1. Desregistrar qualquer Service Worker que possa estar ativo no dispositivo móvel
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((reg) => {
+          reg.unregister().then((success) => {
+            if (success) console.log("[SW] ServiceWorker desregistrado com sucesso");
+          });
+        });
+      }).catch((e) => console.warn("[SW] Erro ao desregistrar:", e));
+    }
+
+    // 2. Limpar todas as caches da CacheStorage API
+    if ("caches" in window) {
+      caches.keys().then((keys) => {
+        keys.forEach((key) => {
+          caches.delete(key).then(() => {
+            console.log("[CacheStorage] Cache purgada:", key);
+          });
+        });
+      }).catch((e) => console.warn("[CacheStorage] Erro ao limpar caches:", e));
+    }
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>
