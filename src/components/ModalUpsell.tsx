@@ -66,12 +66,22 @@ export function ModalUpsell({
               const defaultItem =
                 (Array.isArray(defaultCombos) ? defaultCombos : []).find((c) => c.id === produto.id) ||
                 (Array.isArray(defaultAvulsos) ? defaultAvulsos : []).find((a) => a.id === produto.id);
-              const srcFinal =
+              let srcFinal =
                 (produto as any).image ||
                 produto.imagem ||
                 defaultItem?.image ||
                 defaultItem?.imagem ||
                 "";
+              if (
+                defaultItem &&
+                typeof srcFinal === "string" &&
+                !srcFinal.startsWith("data:") &&
+                !srcFinal.startsWith("blob:") &&
+                !srcFinal.startsWith("http") &&
+                !srcFinal.includes("-v2")
+              ) {
+                srcFinal = defaultItem.imagem || defaultItem.image || srcFinal;
+              }
               return (
                 <img
                   src={srcFinal}

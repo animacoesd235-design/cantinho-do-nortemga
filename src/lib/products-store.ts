@@ -35,9 +35,19 @@ export interface CustomProduct extends Produto {
   ativo?: boolean;
 }
 
-export const PRODUCTS_STORAGE_KEY = "cantinho_norte_products";
+export const STORAGE_VERSION = "v3";
+export const PRODUCTS_STORAGE_KEY = "cantinho_norte_products_v3";
 export const STORAGE_KEY = PRODUCTS_STORAGE_KEY;
+export const STORE_VERSION_KEY = "cantinho_norte_products_version";
 const CATEGORIES_KEY = "cdn_categorias_v2";
+
+const LEGACY_STORAGE_KEYS = [
+  "cantinho_norte_products",
+  "cantinho_norte_products_v1",
+  "cantinho_norte_products_v2",
+  "cdn_produtos_v1",
+  "cdn_produtos_v2",
+];
 
 const syncChannel =
   typeof window !== "undefined" && typeof BroadcastChannel !== "undefined"
@@ -144,14 +154,29 @@ function sanitizeProduct(p: any, defaultCat: string = "avulsos"): CustomProduct 
   const originalProd =
     (Array.isArray(defaultCombos) ? defaultCombos : []).find((d) => d.id === p?.id) ||
     (Array.isArray(defaultAvulsos) ? defaultAvulsos : []).find((d) => d.id === p?.id);
-  const fallbackImg = originalProd?.imagem || (IMAGE_PRESETS && IMAGE_PRESETS[0]?.url) || "";
+  const fallbackImg = originalProd?.imagem || originalProd?.image || (IMAGE_PRESETS && IMAGE_PRESETS[0]?.url) || "";
 
-  const imagemUrl =
+  let imagemCandidate =
     p?.image ||
     p?.imagem ||
     p?.imageUrl ||
     p?.foto ||
     fallbackImg;
+
+  // Se o item for um dos produtos padrão e não for upload próprio (data: ou blob:),
+  // garante atualização instantânea para o asset oficial -v2 caso esteja com caminho antigo
+  if (
+    originalProd &&
+    typeof imagemCandidate === "string" &&
+    !imagemCandidate.startsWith("data:") &&
+    !imagemCandidate.startsWith("blob:") &&
+    !imagemCandidate.startsWith("http") &&
+    !imagemCandidate.includes("-v2")
+  ) {
+    imagemCandidate = originalProd.imagem || originalProd.image || fallbackImg;
+  }
+
+  const imagemUrl = imagemCandidate;
 
   return {
     id: String(p?.id || "prod-" + Math.random().toString(36).substring(2, 8)),
@@ -196,7 +221,59 @@ export function getCustomProducts(): {
   }
 
   try {
-    // 1. O localStorage é a fonte primária absoluta
+    // 0. Versionamento de cache obrigatório:
+    // Se a versão atual não for 'v3', descarta automaticamente o localStorage antigo (chave cantinho_norte_products e anteriores)
+    // para forçar a leitura imediata da nova versão com as imagens -v2
+    const storedVersion = localStorage.getItem(STORE_VERSION_KEY);
+    if (storedVersion !== STORAGE_VERSION) {
+      // Preserva eventuais produtos adicionais criados no admin pelo usuário (não padrão)
+      let customProductsToKeep: any[] = [];
+      try {
+        const oldRaw = localStorage.getItem("cantinho_norte_products");
+        if (oldRaw) {
+          const parsedOld = JSON.parse(oldRaw);
+          const listOld = Array.isArray(parsedOld)
+            ? parsedOld
+            : Array.isArray(parsedOld?.todos)
+            ? parsedOld.todos
+            : [];
+          const isDefaultId = (id: string) =>
+            (Array.isArray(defaultCombos) && defaultCombos.some((c) => c.id === id)) ||
+            (Array.isArray(defaultAvulsos) && defaultAvulsos.some((a) => a.id === id));
+          customProductsToKeep = listOld.filter((item: any) => item?.id && !isDefaultId(item.id));
+        }
+      } catch {}
+
+      // Descarta imediatamente o localStorage antigo
+      for (const legacyKey of LEGACY_STORAGE_KEYS) {
+        try {
+          localStorage.removeItem(legacyKey);
+        } catch {}
+      }
+
+      // Marca a versão v3 como ativa
+      try {
+        localStorage.setItem(STORE_VERSION_KEY, STORAGE_VERSION);
+      } catch {}
+
+      // Inicializa a nova versão cantinho_norte_products_v3 com as fotos -v2 oficiais
+      const def = getDefaults();
+      const todosIniciais = [
+        ...def.todos,
+        ...customProductsToKeep.map((p) => sanitizeProduct(p, p?.categoria)),
+      ];
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(todosIniciais));
+      } catch (e) {
+        console.warn("Não foi possível inicializar localStorage v3 com dados padrão:", e);
+      }
+
+      const combos = todosIniciais.filter((p) => p.categoria === "combo" || p.categoria === "combos");
+      const avulsos = todosIniciais.filter((p) => p.categoria !== "combo" && p.categoria !== "combos");
+      return { combos, avulsos, todos: todosIniciais };
+    }
+
+    // 1. O localStorage na versão v3 é a fonte primária absoluta
     const raw = localStorage.getItem(STORAGE_KEY);
 
     // Se a chave já existir no localStorage e tiver conteúdo, NUNCA sobrescreve com dados padrão!
@@ -225,19 +302,19 @@ export function getCustomProducts(): {
       }
     }
 
-    // 2. Limpeza de chaves legadas para prevenir restauração de fotos antigas em navegadores já visitados
-    if (typeof window !== "undefined") {
+    // 2. Limpeza adicional de segurança de chaves legadas
+    for (const legacyKey of LEGACY_STORAGE_KEYS) {
       try {
-        localStorage.removeItem("cdn_produtos_v2");
-        localStorage.removeItem("cdn_produtos_v1");
+        localStorage.removeItem(legacyKey);
       } catch {}
     }
 
-    // 3. APENAS se a chave cantinho_norte_products estiver TOTALMENTE VAZIA (null ou sem itens):
+    // 3. APENAS se a chave cantinho_norte_products_v3 estiver TOTALMENTE VAZIA (null ou sem itens):
     // Carrega a lista padrão com fotos definitivas e grava uma única vez para inicializar
     const def = getDefaults();
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(def.todos));
+      localStorage.setItem(STORE_VERSION_KEY, STORAGE_VERSION);
     } catch (e) {
       console.warn("Não foi possível inicializar localStorage com dados padrão:", e);
     }
@@ -326,8 +403,12 @@ export function resetProductsToDefault(): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem("cdn_produtos_v2");
-    localStorage.removeItem("cdn_produtos_v1");
+    localStorage.removeItem(STORE_VERSION_KEY);
+    for (const legacyKey of LEGACY_STORAGE_KEYS) {
+      try {
+        localStorage.removeItem(legacyKey);
+      } catch {}
+    }
     localStorage.removeItem(CATEGORIES_KEY);
 
     window.dispatchEvent(new CustomEvent("cdn:products_updated"));

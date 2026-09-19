@@ -82,7 +82,18 @@ export function ProductMedia({
     (Array.isArray(defaultCombos) ? defaultCombos : []).find((c) => c.id === id) ||
     (Array.isArray(defaultAvulsos) ? defaultAvulsos : []).find((a) => a.id === id);
   const dynamicFallback = defaultItem?.image || defaultItem?.imagem || fallback;
-  const finalSrc = media?.data || image || imagem || dynamicFallback;
+  let selected = image || imagem || dynamicFallback;
+  if (
+    defaultItem &&
+    typeof selected === "string" &&
+    !selected.startsWith("data:") &&
+    !selected.startsWith("blob:") &&
+    !selected.startsWith("http") &&
+    !selected.includes("-v2")
+  ) {
+    selected = dynamicFallback;
+  }
+  const finalSrc = media?.data || selected;
 
   return (
     <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-3xl bg-sand-deep/40 flex items-center justify-center">

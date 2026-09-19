@@ -538,7 +538,7 @@ export function ProductCard({
     (Array.isArray(defaultCombos) ? defaultCombos : []).find((c) => c.id === item.id) ||
     (Array.isArray(defaultAvulsos) ? defaultAvulsos : []).find((a) => a.id === item.id);
 
-  const imagemSrc =
+  let rawImg =
     (item as any).image ||
     item.imagem ||
     (item as any).imageUrl ||
@@ -546,6 +546,21 @@ export function ProductCard({
     itemOriginal?.image ||
     itemOriginal?.imagem ||
     "";
+
+  // Se for produto padrão e a imagem não for upload customizado (data: ou blob:),
+  // garante que sempre exiba a foto oficial -v2 caso venha com caminho antigo sem -v2
+  if (
+    itemOriginal &&
+    typeof rawImg === "string" &&
+    !rawImg.startsWith("data:") &&
+    !rawImg.startsWith("blob:") &&
+    !rawImg.startsWith("http") &&
+    !rawImg.includes("-v2")
+  ) {
+    rawImg = itemOriginal.imagem || itemOriginal.image || rawImg;
+  }
+
+  const imagemSrc = rawImg;
 
   return (
     <article className="group relative flex flex-col justify-between overflow-hidden rounded-3xl bg-card border border-border/80 shadow-[var(--shadow-card)] hover:shadow-2xl hover:border-gold/50 transition-all duration-300">
