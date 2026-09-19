@@ -3,6 +3,14 @@ import {
   avulsos as defaultAvulsos,
   type Produto,
 } from "./menu-data";
+import comboPara from "@/assets/combo-para.jpg";
+import bowlPuro from "@/assets/bowl-puro.jpg";
+import farinhaAgua from "@/assets/farinha-agua.jpg";
+import farinhaTapioca from "@/assets/farinha-tapioca.jpg";
+import camaraoSeco from "@/assets/camarao-seco.jpg";
+import acaiCamarao from "@/assets/acai-camarao.jpg";
+import acaiCupuacu from "@/assets/acai-cupuacu.jpg";
+import tucupi from "@/assets/tucupi.jpg";
 
 export interface Categoria {
   id: string;
@@ -36,14 +44,14 @@ const syncChannel =
     : null;
 
 export const IMAGE_PRESETS = [
-  { id: "combo-para", label: "Kit / Combo Amazônico", url: defaultCombos[0]?.imagem || "" },
-  { id: "bowl-puro", label: "Tigela de Açaí Puro", url: defaultCombos[2]?.imagem || "" },
-  { id: "farinha-agua", label: "Farinha D'água / Mandioca", url: defaultCombos[1]?.imagem || "" },
-  { id: "farinha-tapioca", label: "Farinha de Tapioca", url: defaultCombos[6]?.imagem || "" },
-  { id: "camarao-seco", label: "Camarão Salgado", url: defaultCombos[4]?.imagem || "" },
-  { id: "acai-camarao", label: "Açaí com Camarão", url: defaultCombos[5]?.imagem || "" },
-  { id: "acai-cupuacu", label: "Cupuaçu Cremoso", url: defaultAvulsos[4]?.imagem || "" },
-  { id: "tucupi", label: "Tucupi Amarelo", url: defaultAvulsos[7]?.imagem || "" },
+  { id: "combo-para", label: "Kit / Combo Amazônico", url: comboPara },
+  { id: "bowl-puro", label: "Tigela de Açaí Puro", url: bowlPuro },
+  { id: "farinha-agua", label: "Farinha D'água / Mandioca", url: farinhaAgua },
+  { id: "farinha-tapioca", label: "Farinha de Tapioca", url: farinhaTapioca },
+  { id: "camarao-seco", label: "Camarão Salgado", url: camaraoSeco },
+  { id: "acai-camarao", label: "Açaí com Camarão", url: acaiCamarao },
+  { id: "acai-cupuacu", label: "Cupuaçu Cremoso", url: acaiCupuacu },
+  { id: "tucupi", label: "Tucupi Amarelo", url: tucupi },
 ];
 
 export function getCategories(): Categoria[] {
@@ -180,67 +188,71 @@ export function getCustomProducts(): {
   avulsos: CustomProduct[];
   todos: CustomProduct[];
 } {
-  const def = getDefaults();
+  // Se estiver em ambiente sem window (SSR), retorna dados padrão em memória sem gravar no storage
   if (typeof window === "undefined") {
-    return def;
+    return getDefaults();
   }
 
   try {
-    // 1. O localStorage é a fonte primária e obrigatória
-    let raw = localStorage.getItem(STORAGE_KEY);
+    // 1. O localStorage é a fonte primária absoluta
+    const raw = localStorage.getItem(STORAGE_KEY);
 
-    // 2. Migração transparente de chaves legadas caso ainda não exista em cantinho_norte_products
-    if (!raw) {
-      raw = localStorage.getItem("cdn_produtos_v2") || localStorage.getItem("cdn_produtos_v1");
-      if (raw) {
-        try {
-          const parsedLegacy = JSON.parse(raw);
-          const list = Array.isArray(parsedLegacy) ? parsedLegacy : (parsedLegacy?.todos || []);
-          if (list && list.length > 0) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
-          }
-        } catch {}
+    // Se a chave já existir no localStorage e tiver conteúdo, NUNCA sobrescreve com dados padrão!
+    if (raw !== null && raw.trim() !== "") {
+      try {
+        const parsed = JSON.parse(raw);
+        let rawList: any[] = [];
+        if (Array.isArray(parsed)) {
+          rawList = parsed;
+        } else if (Array.isArray(parsed?.todos)) {
+          rawList = parsed.todos;
+        } else if (Array.isArray(parsed?.combos) || Array.isArray(parsed?.avulsos)) {
+          rawList = [...(parsed.combos || []), ...(parsed.avulsos || [])];
+        }
+
+        // Se a chave já existe e contém itens, lê diretamente do localStorage sem gravar nada,
+        // preservando integralmente todas as alterações, novos produtos e uploads de fotos do admin.
+        if (rawList && rawList.length > 0) {
+          const todos = rawList.map((p: any) => sanitizeProduct(p, p?.categoria));
+          const combos = todos.filter((p) => p.categoria === "combo" || p.categoria === "combos");
+          const avulsos = todos.filter((p) => p.categoria !== "combo" && p.categoria !== "combos");
+          return { combos, avulsos, todos };
+        }
+      } catch (parseErr) {
+        console.error("Erro ao ler dados do localStorage:", parseErr);
       }
     }
 
-    // 3. Se o localStorage estiver totalmente vazio, utiliza a lista inicial de fábrica como último recurso absoluto
-    // e persiste imediatamente no localStorage para garantir que a partir deste momento ela passe a ser gerenciada lá
-    if (!raw) {
+    // 2. Migração de chaves legadas (somente se cantinho_norte_products estiver null ou vazia)
+    const legacyRaw = localStorage.getItem("cdn_produtos_v2") || localStorage.getItem("cdn_produtos_v1");
+    if (legacyRaw && legacyRaw.trim() !== "") {
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(def.todos));
-      } catch (e) {
-        console.warn("Não foi possível persistir lista padrão inicial no localStorage:", e);
-      }
-      return def;
-    }
-
-    const parsed = JSON.parse(raw);
-    let rawList: any[] = [];
-    if (Array.isArray(parsed)) {
-      rawList = parsed;
-    } else if (Array.isArray(parsed?.todos)) {
-      rawList = parsed.todos;
-    } else if (Array.isArray(parsed?.combos) || Array.isArray(parsed?.avulsos)) {
-      rawList = [...(parsed.combos || []), ...(parsed.avulsos || [])];
-    }
-
-    // Se o array salvo estiver vazio, também recai para o padrão como último recurso e persiste
-    if (rawList.length === 0) {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(def.todos));
+        const parsedLegacy = JSON.parse(legacyRaw);
+        const list = Array.isArray(parsedLegacy) ? parsedLegacy : (parsedLegacy?.todos || []);
+        if (list && list.length > 0) {
+          const todos = list.map((p: any) => sanitizeProduct(p, p?.categoria));
+          const combos = todos.filter((p) => p.categoria === "combo" || p.categoria === "combos");
+          const avulsos = todos.filter((p) => p.categoria !== "combo" && p.categoria !== "combos");
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+          } catch {}
+          return { combos, avulsos, todos };
+        }
       } catch {}
-      return def;
     }
 
-    // 4. Mapeia e sanitiza rigorosamente cada produto garantindo que fotos cadastradas no admin prevaleçam
-    const todos = rawList.map((p: any) => sanitizeProduct(p, p?.categoria));
-    const combos = todos.filter((p) => p.categoria === "combo" || p.categoria === "combos");
-    const avulsos = todos.filter((p) => p.categoria !== "combo" && p.categoria !== "combos");
-
-    return { combos, avulsos, todos };
-  } catch (e) {
-    console.error("Erro ao carregar produtos do localStorage:", e);
+    // 3. APENAS se a chave cantinho_norte_products estiver TOTALMENTE VAZIA (null ou sem itens):
+    // Carrega a lista padrão e grava uma única vez para inicializar
+    const def = getDefaults();
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(def.todos));
+    } catch (e) {
+      console.warn("Não foi possível inicializar localStorage com dados padrão:", e);
+    }
     return def;
+  } catch (e) {
+    console.error("Erro ao ler produtos do localStorage:", e);
+    return getDefaults();
   }
 }
 

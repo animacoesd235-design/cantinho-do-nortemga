@@ -15,6 +15,7 @@ export type Produto = {
   precoOriginal?: number;
   economia?: number;
   imagem: string;
+  image?: string;
   destaque?: string;
 };
 
@@ -27,6 +28,7 @@ export const combos: Produto[] = [
     precoOriginal: 65,
     economia: 17,
     imagem: comboPara,
+    image: comboPara,
     destaque: "Mais Vendido • Melhor Custo",
   },
   {
@@ -36,7 +38,8 @@ export const combos: Produto[] = [
     preco: 53,
     precoOriginal: 57,
     economia: 4,
-    imagem: farinhaAgua,
+    imagem: comboPara,
+    image: comboPara,
   },
   {
     id: "combo-2l-farinha",
@@ -45,7 +48,8 @@ export const combos: Produto[] = [
     preco: 85,
     precoOriginal: 94,
     economia: 9,
-    imagem: bowlPuro,
+    imagem: comboPara,
+    image: comboPara,
   },
   {
     id: "combo-3l-farinha",
@@ -55,6 +59,7 @@ export const combos: Produto[] = [
     precoOriginal: 151,
     economia: 20,
     imagem: comboPara,
+    image: comboPara,
     destaque: "Família",
   },
   {
@@ -64,7 +69,8 @@ export const combos: Produto[] = [
     preco: 70,
     precoOriginal: 82,
     economia: 12,
-    imagem: camaraoSeco,
+    imagem: acaiCamarao,
+    image: acaiCamarao,
     destaque: "Tradição",
   },
   {
@@ -75,6 +81,7 @@ export const combos: Produto[] = [
     precoOriginal: 82,
     economia: 14,
     imagem: acaiCamarao,
+    image: acaiCamarao,
   },
   {
     id: "combo-farinha-conserva",
@@ -84,7 +91,8 @@ export const combos: Produto[] = [
     preco: 68,
     precoOriginal: 77,
     economia: 9,
-    imagem: farinhaTapioca,
+    imagem: comboPara,
+    image: comboPara,
   },
   {
     id: "combo-farinha-charque",
@@ -95,6 +103,7 @@ export const combos: Produto[] = [
     precoOriginal: 78,
     economia: 10,
     imagem: comboPara,
+    image: comboPara,
   },
 ];
 
@@ -105,6 +114,7 @@ export const avulsos: Produto[] = [
     descricao: "Puro da Amazônia, sem misturas, pronto para consumir ou montar em casa.",
     preco: 37,
     imagem: bowlPuro,
+    image: bowlPuro,
     destaque: "Mais pedido",
   },
   {
@@ -113,6 +123,7 @@ export const avulsos: Produto[] = [
     descricao: "Charque selecionado do Amapá, sabor autêntico do norte.",
     preco: 90,
     imagem: comboPara,
+    image: comboPara,
   },
   {
     id: "camarao-salgado",
@@ -120,13 +131,15 @@ export const avulsos: Produto[] = [
     descricao: "Camarão graúdo, salgado no ponto e selecionado peça a peça.",
     preco: 100,
     imagem: camaraoSeco,
+    image: camaraoSeco,
   },
   {
     id: "conserva-carne",
     nome: "Conserva de Carne (Unidade)",
     descricao: "Carne em conserva artesanal, tradição da despensa amazônica.",
     preco: 20,
-    imagem: tucupi,
+    imagem: comboPara,
+    image: comboPara,
   },
   {
     id: "polpa-cupuacu",
@@ -134,6 +147,7 @@ export const avulsos: Produto[] = [
     descricao: "Polpa cremosa e legítima de cupuaçu, direto da Amazônia.",
     preco: 45,
     imagem: acaiCupuacu,
+    image: acaiCupuacu,
   },
   {
     id: "farinha-mandioca",
@@ -141,6 +155,7 @@ export const avulsos: Produto[] = [
     descricao: "Crocante, artesanal e torrada no ponto certo, direto do Pará.",
     preco: 20,
     imagem: farinhaAgua,
+    image: farinhaAgua,
   },
   {
     id: "farinha-tapioca",
@@ -148,6 +163,7 @@ export const avulsos: Produto[] = [
     descricao: "Leve e delicada, perfeita para acompanhar o açaí.",
     preco: 20,
     imagem: farinhaTapioca,
+    image: farinhaTapioca,
   },
   {
     id: "tucupi",
@@ -155,6 +171,7 @@ export const avulsos: Produto[] = [
     descricao: "Caldo dourado de mandioca fermentada, base do tacacá e do pato no tucupi.",
     preco: 30,
     imagem: tucupi,
+    image: tucupi,
   },
   {
     id: "maniva",
@@ -162,13 +179,15 @@ export const avulsos: Produto[] = [
     descricao: "Folha de mandioca pronta para a sua maniçoba.",
     preco: 60,
     imagem: farinhaAgua,
+    image: farinhaAgua,
   },
   {
     id: "farofa",
     nome: "Farofa (O Litro)",
     descricao: "Farofa artesanal dourada, companhia ideal de qualquer prato.",
     preco: 20,
-    imagem: farinhaTapioca,
+    imagem: farinhaAgua,
+    image: farinhaAgua,
   },
 ];
 
