@@ -1,6 +1,7 @@
 import { Camera, Loader2, RotateCcw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { combos as defaultCombos, avulsos as defaultAvulsos } from "@/lib/menu-data";
 
 type SavedMedia = { tipo: "image" | "video"; data: string };
 
@@ -77,6 +78,12 @@ export function ProductMedia({
     toast("Foto original restaurada");
   };
 
+  const defaultItem =
+    (Array.isArray(defaultCombos) ? defaultCombos : []).find((c) => c.id === id) ||
+    (Array.isArray(defaultAvulsos) ? defaultAvulsos : []).find((a) => a.id === id);
+  const dynamicFallback = defaultItem?.image || defaultItem?.imagem || fallback;
+  const finalSrc = media?.data || image || imagem || dynamicFallback;
+
   return (
     <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-3xl bg-sand-deep/40 flex items-center justify-center">
       {media?.tipo === "video" ? (
@@ -91,7 +98,7 @@ export function ProductMedia({
         />
       ) : (
         <img
-          src={media?.data || image || imagem || fallback}
+          src={finalSrc}
           alt={alt}
           width={1024}
           height={768}

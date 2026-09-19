@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Check, Plus, Sparkles, X } from "lucide-react";
-import { brl, type Produto } from "@/lib/menu-data";
+import { brl, combos as defaultCombos, avulsos as defaultAvulsos, type Produto } from "@/lib/menu-data";
 import { UPSELL_EXTRAS, type ExtraItem } from "@/lib/orders";
 
 interface ModalUpsellProps {
@@ -62,11 +62,24 @@ export function ModalUpsell({
         {/* Resumo do Produto Selecionado */}
         <div className="p-4 sm:p-5 bg-background/50 border-b border-border/50 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <img
-              src={(produto as any).image || produto.imagem || ""}
-              alt={produto.nome}
-              className="h-14 w-14 rounded-2xl object-contain p-1 bg-sand-deep/40 border border-border/80 shrink-0"
-            />
+            {(() => {
+              const defaultItem =
+                (Array.isArray(defaultCombos) ? defaultCombos : []).find((c) => c.id === produto.id) ||
+                (Array.isArray(defaultAvulsos) ? defaultAvulsos : []).find((a) => a.id === produto.id);
+              const srcFinal =
+                (produto as any).image ||
+                produto.imagem ||
+                defaultItem?.image ||
+                defaultItem?.imagem ||
+                "";
+              return (
+                <img
+                  src={srcFinal}
+                  alt={produto.nome}
+                  className="h-14 w-14 rounded-2xl object-contain p-1 bg-sand-deep/40 border border-border/80 shrink-0"
+                />
+              );
+            })()}
             <div className="min-w-0">
               <p className="text-sm font-bold text-forest truncate font-display">
                 {produto.nome}

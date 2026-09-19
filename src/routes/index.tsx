@@ -27,6 +27,8 @@ import heroBg from "@/assets/hero-bg.jpg";
 import {
   WHATSAPP,
   brl,
+  combos as defaultCombos,
+  avulsos as defaultAvulsos,
   type Produto,
 } from "@/lib/menu-data";
 import {
@@ -530,12 +532,19 @@ export function ProductCard({
     item.nome.toLowerCase().includes("açaí") ||
     item.nome.toLowerCase().includes("acai");
 
-  // Puxa obrigatoriamente e dinamicamente a propriedade da imagem (product.image ou product.imagem) cadastrada no admin
+  // Puxa obrigatoriamente e dinamicamente a propriedade da imagem (product.image ou product.imagem) cadastrada no admin,
+  // com fallback garantido direto no menu-data.ts definitivo para novos usuários e aparelhos sem localStorage
+  const itemOriginal =
+    (Array.isArray(defaultCombos) ? defaultCombos : []).find((c) => c.id === item.id) ||
+    (Array.isArray(defaultAvulsos) ? defaultAvulsos : []).find((a) => a.id === item.id);
+
   const imagemSrc =
     (item as any).image ||
     item.imagem ||
     (item as any).imageUrl ||
     (item as any).foto ||
+    itemOriginal?.image ||
+    itemOriginal?.imagem ||
     "";
 
   return (

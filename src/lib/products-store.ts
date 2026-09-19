@@ -223,26 +223,16 @@ export function getCustomProducts(): {
       }
     }
 
-    // 2. Migração de chaves legadas (somente se cantinho_norte_products estiver null ou vazia)
-    const legacyRaw = localStorage.getItem("cdn_produtos_v2") || localStorage.getItem("cdn_produtos_v1");
-    if (legacyRaw && legacyRaw.trim() !== "") {
+    // 2. Limpeza de chaves legadas para prevenir restauração de fotos antigas em navegadores já visitados
+    if (typeof window !== "undefined") {
       try {
-        const parsedLegacy = JSON.parse(legacyRaw);
-        const list = Array.isArray(parsedLegacy) ? parsedLegacy : (parsedLegacy?.todos || []);
-        if (list && list.length > 0) {
-          const todos = list.map((p: any) => sanitizeProduct(p, p?.categoria));
-          const combos = todos.filter((p) => p.categoria === "combo" || p.categoria === "combos");
-          const avulsos = todos.filter((p) => p.categoria !== "combo" && p.categoria !== "combos");
-          try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-          } catch {}
-          return { combos, avulsos, todos };
-        }
+        localStorage.removeItem("cdn_produtos_v2");
+        localStorage.removeItem("cdn_produtos_v1");
       } catch {}
     }
 
     // 3. APENAS se a chave cantinho_norte_products estiver TOTALMENTE VAZIA (null ou sem itens):
-    // Carrega a lista padrão e grava uma única vez para inicializar
+    // Carrega a lista padrão com fotos definitivas e grava uma única vez para inicializar
     const def = getDefaults();
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(def.todos));
