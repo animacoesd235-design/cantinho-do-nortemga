@@ -123,6 +123,9 @@ function Cardapio() {
     window.addEventListener('storage', handleUpdate);
     window.addEventListener("focus", sincronizarTudo);
     window.addEventListener("visibilitychange", sincronizarTudo);
+
+    const cleanupProds = typeof onProductsUpdate === 'function' ? onProductsUpdate(sincronizarTudo) : null;
+    const cleanupCats = typeof onCategoriesUpdate === 'function' ? onCategoriesUpdate(sincronizarTudo) : null;
     
     const intervalTimer = setInterval(sincronizarTudo, 2000);
 
@@ -131,10 +134,11 @@ function Cardapio() {
       window.removeEventListener('storage', handleUpdate);
       window.removeEventListener("focus", sincronizarTudo);
       window.removeEventListener("visibilitychange", sincronizarTudo);
+      if (typeof cleanupProds === 'function') cleanupProds();
+      if (typeof cleanupCats === 'function') cleanupCats();
       clearInterval(intervalTimer);
     };
   }, []);
-
     // Sincroniza imediatamente no cliente para puxar as imagens salvas no admin
     sincronizarTudo();
 
