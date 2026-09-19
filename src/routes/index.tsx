@@ -378,8 +378,8 @@ function Cardapio() {
   );
 }
 
-function BarraSuperiorTopo(props: { status: StoreStatusResult }) {
-  const { status } = props;
+function BarraSuperiorTopo(props) {
+  const status = props.status as StoreStatusResult;
   const isPausa = status.reason === "manual_pause";
 
   const textoFechado = isPausa
@@ -400,15 +400,9 @@ function BarraSuperiorTopo(props: { status: StoreStatusResult }) {
         {/* Selo de Status em Pílula Sutil, Compacta e Dinâmica */}
         <div className="shrink-0 flex items-center justify-center">
           {status.isOpen ? (
-            <span
-              className="inline-flex items-center gap-1.5 rounded-full bg-emerald-950/80 border border-emerald-500/40 px-3 py-0.5 text-[11px] font-extrabold text-emerald-300 shadow-2xs backdrop-blur-md transition-all tracking-wide"
-              title="Cantinho do Norte está aberto e entregando em Maringá"
-            >
-              <span className="relative flex h-2 w-2 shrink-0">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
-              <span>🟢 Aberto agora</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-950/80 border border-emerald-500/40 text-emerald-200 font-medium tracking-wide shadow-inner">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              Aberto agora
               {status.nextSchedule && (
                 <span className="hidden lg:inline text-emerald-400/70 font-normal text-[10px]">
                   • {status.nextSchedule}
@@ -423,21 +417,18 @@ function BarraSuperiorTopo(props: { status: StoreStatusResult }) {
                   : "Olá! Gostaria de tirar uma dúvida ou agendar um pedido com antecedência no Cantinho do Norte."
               )}`}
               target="_blank"
-              rel="noreferrer"
-              title="Atendimento pausado ou fechado no momento. Clique para falar no WhatsApp."
-              className="tap inline-flex items-center gap-1.5 rounded-full bg-rose-950/80 hover:bg-rose-900/80 border border-rose-500/40 px-3 py-0.5 text-[11px] font-extrabold text-rose-300 shadow-2xs backdrop-blur-md transition-all tracking-wide"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-950/80 border border-rose-500/40 text-rose-200 font-medium tracking-wide shadow-inner hover:bg-rose-900/80 transition-colors"
             >
-              <span className="relative flex h-2 w-2 shrink-0">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-400" />
-              </span>
-              <span>{textoFechado}</span>
-              <span className="text-rose-300/70 font-normal text-[10px]">
-                (WhatsApp 💬)
-              </span>
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></span>
+              {textoFechado}
             </a>
           )}
         </div>
+      </div>
+    </aside>
+  );
+}
 
         {/* Separador visual sutil no desktop */}
         <span className="hidden sm:inline-block h-3 w-px bg-white/20" aria-hidden="true" />
