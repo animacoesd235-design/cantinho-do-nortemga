@@ -32,7 +32,7 @@ export function ThermalReceipt({ order }: ThermalReceiptProps) {
         <p className="text-[10px] font-extrabold uppercase bg-black text-white px-2 py-0.5 inline-block mt-1">
           *** 100% DELIVERY ***
         </p>
-        <p className="text-[10px] text-gray-700">Maringá - PR • Pedidos WhatsApp</p>
+        <p className="text-[10px] text-gray-700">Maringá - PR • WhatsApp (44) 99172-3310</p>
       </div>
 
       {/* Identificação do Pedido */}

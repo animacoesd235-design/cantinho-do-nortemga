@@ -191,7 +191,7 @@ export const avulsos: Produto[] = [
   },
 ];
 
-export const WHATSAPP = "5544999999999";
+export const WHATSAPP = "5544991723310";
 
 export const brl = (v?: number | null) => {
   const num = typeof v === "number" && !isNaN(v) ? v : 0;

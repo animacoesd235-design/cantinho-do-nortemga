@@ -696,14 +696,20 @@ function Footer({
               <p className="text-xs text-muted-foreground max-w-sm mt-1">
                 O autêntico açaí batido na garrafa e kits artesanais direto do Norte.
               </p>
-              {/* Status Aberto Agora com Ponto Verde Pulsante */}
-              <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+              {/* Status Aberto Agora com Ponto Verde Pulsante e Link Oficial de WhatsApp */}
+              <a
+                href={`https://wa.me/${WHATSAPP}?text=${encodeURIComponent("Olá! Gostaria de fazer um pedido no Cantinho do Norte.")}`}
+                target="_blank"
+                rel="noreferrer"
+                className="tap mt-2 inline-flex items-center gap-2 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 px-3.5 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400 transition-colors"
+                title="Falar diretamente no WhatsApp da loja"
+              >
                 <span className="relative flex h-2.5 w-2.5">
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
                 </span>
-                <span>Aberto agora • Pedidos via WhatsApp</span>
-              </div>
+                <span>Aberto agora • WhatsApp (44) 99172-3310</span>
+              </a>
             </div>
 
             {/* Horários e Modalidade 100% Delivery */}
