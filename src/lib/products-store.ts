@@ -576,3 +576,11 @@ export function onProductsUpdate(callback: () => void): () => void {
     }
   };
 }
+// Sincronização forçada no arranque para telemóveis
+if (typeof window !== 'undefined' && typeof isCloudConfigured === 'function' && isCloudConfigured()) {
+  fetchCloudProducts().then(cloudData => {
+    if (cloudData && cloudData.length > 0 && typeof saveAllProducts === 'function') {
+      saveAllProducts(cloudData);
+    }
+  }).catch(err => console.error("Erro ao sincronizar no arranque:", err));
+}
