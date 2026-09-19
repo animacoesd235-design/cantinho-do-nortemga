@@ -3,14 +3,15 @@ import {
   avulsos as defaultAvulsos,
   type Produto,
 } from "./menu-data";
-import comboPara from "@/assets/combo-para.jpg";
-import bowlPuro from "@/assets/bowl-puro.jpg";
-import farinhaAgua from "@/assets/farinha-agua.jpg";
-import farinhaTapioca from "@/assets/farinha-tapioca.jpg";
-import camaraoSeco from "@/assets/camarao-seco.jpg";
-import acaiCamarao from "@/assets/acai-camarao.jpg";
-import acaiCupuacu from "@/assets/acai-cupuacu.jpg";
-import tucupi from "@/assets/tucupi.jpg";
+import kitCompleto from "@/assets/kit-completo-v2.jpg";
+import comboPara from "@/assets/combo-para-v2.jpg";
+import bowlPuro from "@/assets/bowl-puro-v2.jpg";
+import farinhaAgua from "@/assets/farinha-agua-v2.jpg";
+import farinhaTapioca from "@/assets/farinha-tapioca-v2.jpg";
+import camaraoSeco from "@/assets/camarao-seco-v2.jpg";
+import acaiCamarao from "@/assets/acai-camarao-v2.jpg";
+import acaiCupuacu from "@/assets/acai-cupuacu-v2.jpg";
+import tucupi from "@/assets/tucupi-v2.jpg";
 
 export interface Categoria {
   id: string;
@@ -44,6 +45,7 @@ const syncChannel =
     : null;
 
 export const IMAGE_PRESETS = [
+  { id: "kit-completo", label: "Kit Completo (Açaí + Farinhas)", url: kitCompleto },
   { id: "combo-para", label: "Kit / Combo Amazônico", url: comboPara },
   { id: "bowl-puro", label: "Tigela de Açaí Puro", url: bowlPuro },
   { id: "farinha-agua", label: "Farinha D'água / Mandioca", url: farinhaAgua },

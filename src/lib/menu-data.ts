@@ -1,11 +1,12 @@
-import acaiCamarao from "../assets/acai-camarao.jpg";
-import bowlPuro from "../assets/bowl-puro.jpg";
-import acaiCupuacu from "../assets/acai-cupuacu.jpg";
-import comboPara from "../assets/combo-para.jpg";
-import farinhaAgua from "../assets/farinha-agua.jpg";
-import farinhaTapioca from "../assets/farinha-tapioca.jpg";
-import camaraoSeco from "../assets/camarao-seco.jpg";
-import tucupi from "../assets/tucupi.jpg";
+import kitCompleto from "../assets/kit-completo-v2.jpg";
+import comboPara from "../assets/combo-para-v2.jpg";
+import acaiCamarao from "../assets/acai-camarao-v2.jpg";
+import bowlPuro from "../assets/bowl-puro-v2.jpg";
+import acaiCupuacu from "../assets/acai-cupuacu-v2.jpg";
+import farinhaAgua from "../assets/farinha-agua-v2.jpg";
+import farinhaTapioca from "../assets/farinha-tapioca-v2.jpg";
+import camaraoSeco from "../assets/camarao-seco-v2.jpg";
+import tucupi from "../assets/tucupi-v2.jpg";
 
 export type Produto = {
   id: string;
@@ -27,8 +28,8 @@ export const combos: Produto[] = [
     preco: 48,
     precoOriginal: 65,
     economia: 17,
-    imagem: comboPara,
-    image: comboPara,
+    imagem: kitCompleto,
+    image: kitCompleto,
     destaque: "Mais Vendido • Melhor Custo",
   },
   {
