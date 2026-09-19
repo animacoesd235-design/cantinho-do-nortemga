@@ -32,6 +32,8 @@ import {
   Wallet,
   X,
   Trash2,
+  Cloud,
+  CloudOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/logo-cantinho.png";
@@ -65,6 +67,8 @@ import {
   onProductsUpdate,
   resetProductsToDefault,
   saveProduct,
+  isCloudConfigured,
+  syncAllLocalProductsToCloud,
   type Categoria,
   type CustomProduct,
 } from "@/lib/products-store";
@@ -769,7 +773,29 @@ function TabProdutos() {
   const [carregandoImagem, setCarregandoImagem] = useState(false);
   const [modoNovaCategoria, setModoNovaCategoria] = useState(false);
   const [novoNomeCategoria, setNovoNomeCategoria] = useState("");
+  const [sincronizandoNuvem, setSincronizandoNuvem] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSincronizarNuvem = async () => {
+    if (!isCloudConfigured()) {
+      toast.info("A nuvem não está configurada no momento. O sistema está operando em modo local seguro.");
+      return;
+    }
+    try {
+      setSincronizandoNuvem(true);
+      toast.loading("Sincronizando catálogo com a nuvem...", { id: "sync-cloud" });
+      const ok = await syncAllLocalProductsToCloud();
+      if (ok) {
+        toast.success("Catálogo sincronizado com a nuvem com sucesso!", { id: "sync-cloud" });
+      } else {
+        toast.error("Não foi possível sincronizar com a nuvem. Mantendo dados locais.", { id: "sync-cloud" });
+      }
+    } catch (e: any) {
+      toast.error(e?.message || "Falha na sincronização", { id: "sync-cloud" });
+    } finally {
+      setSincronizandoNuvem(false);
+    }
+  };
 
   const carregarProdutosECategorias = () => {
     try {
@@ -919,7 +945,28 @@ function TabProdutos() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {isCloudConfigured() ? (
+            <button
+              type="button"
+              onClick={handleSincronizarNuvem}
+              disabled={sincronizandoNuvem}
+              title="Sincronizar todo o catálogo local com a nuvem (Supabase)"
+              className="tap flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-2 text-xs font-bold text-emerald-300 transition-colors cursor-pointer"
+            >
+              <Cloud className="h-3.5 w-3.5 text-emerald-400" />
+              <span>{sincronizandoNuvem ? "Sincronizando..." : "Nuvem Conectada"}</span>
+            </button>
+          ) : (
+            <span
+              title="Sincronização em nuvem opcional desligada. O site está operando normalmente no modo local com fallback de fábrica."
+              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-medium text-white/50"
+            >
+              <CloudOff className="h-3 w-3 text-amber-400/80" />
+              <span>Modo Local / Fábrica</span>
+            </span>
+          )}
+
           <button
             onClick={handleRestaurarPadrao}
             title="Voltar aos produtos e fotos padrão"
