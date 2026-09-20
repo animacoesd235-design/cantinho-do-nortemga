@@ -356,18 +356,27 @@ export function getCustomProducts(): {
   }
 }
 
-export function saveAllProducts(data: {
-  combos: CustomProduct[];
-  avulsos: CustomProduct[];
-  todos?: CustomProduct[];
-}): void {
+export function saveAllProducts(
+  data:
+    | {
+        combos: CustomProduct[];
+        avulsos: CustomProduct[];
+        todos?: CustomProduct[];
+      }
+    | CustomProduct[]
+): void {
   if (typeof window === "undefined") return;
   try {
-    const rawTodos =
-      data.todos ||
-      [...data.combos, ...data.avulsos].filter(
-        (v, i, a) => a.findIndex((t) => t.id === v.id) === i
-      );
+    let rawTodos: CustomProduct[] = [];
+    if (Array.isArray(data)) {
+      rawTodos = data;
+    } else {
+      rawTodos =
+        data.todos ||
+        [...(data.combos || []), ...(data.avulsos || [])].filter(
+          (v, i, a) => a.findIndex((t) => t.id === v.id) === i
+        );
+    }
     const todos = rawTodos.map((p) => sanitizeProduct(p, p.categoria));
     const combos = todos.filter((p) => p.categoria === "combo" || p.categoria === "combos");
     const avulsos = todos.filter((p) => p.categoria !== "combo" && p.categoria !== "combos");
@@ -470,61 +479,129 @@ export function resetProductsToDefault(): void {
   }
 }
 
+let activeRealtimeCleanup: (() => void) | null = null;
+let syncIntervalTimer: any = null;
 let cloudSyncInitialized = false;
 
 /**
+ * Sincroniza ativamente com o Supabase e atualiza o estado local e a interface.
+ */
+export async function syncWithCloud(forceSeedIfEmpty = true): Promise<boolean> {
+  if (typeof window === "undefined" || !isCloudConfigured()) return false;
+
+  try {
+    const cloudProducts = await fetchCloudProducts();
+    if (Array.isArray(cloudProducts) && cloudProducts.length > 0) {
+      const todos = cloudProducts.map((p) => sanitizeProduct(p, p.categoria));
+
+      // Auto-descobre categorias personalizadas sincronizadas de outros dispositivos
+      try {
+        const currentCats = getCategories();
+        let catsUpdated = false;
+        const newCats = [...currentCats];
+        for (const prod of todos) {
+          if (prod.categoria && !newCats.some((c) => c.id === prod.categoria)) {
+            const catName =
+              prod.categoria.charAt(0).toUpperCase() +
+              prod.categoria.slice(1).replace(/-/g, " ");
+            newCats.push({ id: prod.categoria, nome: catName });
+            catsUpdated = true;
+          }
+        }
+        if (catsUpdated) {
+          saveCategories(newCats);
+        }
+      } catch {}
+
+      saveAllProducts(todos);
+      return true;
+    } else if (Array.isArray(cloudProducts) && cloudProducts.length === 0 && forceSeedIfEmpty) {
+      // Nuvem conectada mas vazia: envia os produtos atuais de fábrica
+      const def = getDefaults();
+      await seedCloudIfEmpty(def.todos);
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.warn("[ProductsStore] Falha silenciosa na sincronização com a nuvem:", err);
+    return false;
+  }
+}
+
+/**
  * Inicialização progressiva e em segundo plano da sincronização em nuvem.
- * Executa apenas no navegador (cliente) e se as chaves da nuvem estiverem presentes.
+ * Executa apenas no navegador (cliente) e se as credenciais estiverem presentes.
  */
 export function initCloudSync(): () => void {
-  if (typeof window === "undefined" || !isCloudConfigured() || cloudSyncInitialized) {
+  if (typeof window === "undefined") return () => {};
+
+  if (!isCloudConfigured()) {
+    if (activeRealtimeCleanup) {
+      activeRealtimeCleanup();
+      activeRealtimeCleanup = null;
+    }
+    if (syncIntervalTimer) {
+      clearInterval(syncIntervalTimer);
+      syncIntervalTimer = null;
+    }
+    cloudSyncInitialized = false;
     return () => {};
+  }
+
+  if (cloudSyncInitialized) {
+    return activeRealtimeCleanup || (() => {});
   }
   cloudSyncInitialized = true;
 
-  // 1. Consulta assíncrona em segundo plano sem travar a tela
-  (async () => {
-    try {
-      const cloudProducts = await fetchCloudProducts();
-      if (Array.isArray(cloudProducts) && cloudProducts.length > 0) {
-        // Se a nuvem retornou produtos válidos, atualiza o cache local e emite evento
-        const todos = cloudProducts.map((p) => sanitizeProduct(p, p.categoria));
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-        } catch {}
+  // 1. Sincronização inicial imediata ao abrir o app
+  syncWithCloud(true);
 
-        window.dispatchEvent(new CustomEvent("cdn:products_updated"));
-        document.dispatchEvent(new CustomEvent("cdn:products_updated"));
-      } else {
-        // Se o banco na nuvem estiver vazio, faz o seed com o catálogo oficial
-        const def = getDefaults();
-        await seedCloudIfEmpty(def.todos);
-      }
-    } catch (e) {
-      console.warn("[ProductsStore] Falha silenciosa ao sincronizar com a nuvem:", e);
-    }
-  })();
-
-  // 2. Subscrição Realtime para alterações feitas pelo Admin em outros dispositivos
-  const unsubscribeRealtime = subscribeToCloudProducts(async () => {
-    try {
-      const cloudProducts = await fetchCloudProducts();
-      if (Array.isArray(cloudProducts) && cloudProducts.length > 0) {
-        const todos = cloudProducts.map((p) => sanitizeProduct(p, p.categoria));
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-        } catch {}
-        window.dispatchEvent(new CustomEvent("cdn:products_updated"));
-        document.dispatchEvent(new CustomEvent("cdn:products_updated"));
-      }
-    } catch (e) {
-      console.warn("[ProductsStore] Falha ao processar evento realtime:", e);
-    }
+  // 2. Subscrição Realtime para alterações feitas por outros dispositivos
+  const cleanupRealtime = subscribeToCloudProducts((payload) => {
+    console.log("[ProductsStore Realtime] Notificação recebida da nuvem, atualizando catálogo...");
+    syncWithCloud(false);
   });
+  activeRealtimeCleanup = cleanupRealtime;
+
+  // 3. Listeners de foco e visibilidade (para telemóveis ao desbloquear a tela ou trocar de app)
+  const handleWakeup = () => {
+    if (document.visibilityState === "visible" || document.hasFocus()) {
+      syncWithCloud(false);
+    }
+  };
+
+  window.addEventListener("focus", handleWakeup);
+  document.addEventListener("visibilitychange", handleWakeup);
+
+  // 4. Polling leve periódico (a cada 15 segundos) se a aba estiver visível
+  if (syncIntervalTimer) clearInterval(syncIntervalTimer);
+  syncIntervalTimer = setInterval(() => {
+    if (typeof document !== "undefined" && document.visibilityState === "visible") {
+      syncWithCloud(false);
+    }
+  }, 15000);
 
   return () => {
-    unsubscribeRealtime();
+    cloudSyncInitialized = false;
+    if (activeRealtimeCleanup) {
+      activeRealtimeCleanup();
+      activeRealtimeCleanup = null;
+    }
+    if (syncIntervalTimer) {
+      clearInterval(syncIntervalTimer);
+      syncIntervalTimer = null;
+    }
+    window.removeEventListener("focus", handleWakeup);
+    document.removeEventListener("visibilitychange", handleWakeup);
   };
+}
+
+// Quando as credenciais de nuvem forem alteradas no admin, re-inicializa imediatamente
+if (typeof window !== "undefined") {
+  window.addEventListener("cdn:cloud_config_updated", () => {
+    cloudSyncInitialized = false;
+    initCloudSync();
+  });
 }
 
 /**
@@ -534,10 +611,12 @@ export async function syncAllLocalProductsToCloud(): Promise<boolean> {
   if (!isCloudConfigured()) return false;
   try {
     const current = getCustomProducts();
+    let allOk = true;
     for (const p of current.todos) {
-      await syncProductToCloud(p);
+      const ok = await syncProductToCloud(p);
+      if (!ok) allOk = false;
     }
-    return true;
+    return allOk;
   } catch (e) {
     console.warn("[ProductsStore] Erro ao sincronizar catálogo completo:", e);
     return false;
@@ -576,14 +655,9 @@ export function onProductsUpdate(callback: () => void): () => void {
     }
   };
 }
-// Sincronização forçada no arranque com atualização visual imediata
-if (typeof window !== 'undefined' && typeof isCloudConfigured === 'function' && isCloudConfigured()) {
-  fetchCloudProducts().then(cloudData => {
-    if (cloudData && cloudData.length > 0 && typeof saveAllProducts === 'function') {
-      saveAllProducts(cloudData);
-      // Força o ecrã do telemóvel a atualizar os produtos instantaneamente
-      window.dispatchEvent(new Event('products_updated'));
-      window.dispatchEvent(new Event('storage'));
-    }
-  }).catch(err => console.error("Erro ao sincronizar no arranque:", err));
+
+// Sincronização inicial automática no arranque do navegador
+if (typeof window !== "undefined") {
+  initCloudSync();
 }
+

@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import logo from "@/assets/logo-cantinho.png";
+import { ModalConfigNuvem } from "@/components/ModalConfigNuvem";
 import { compressImageFile } from "@/lib/image-utils";
 import {
   isAdminAuthenticated,
@@ -93,6 +94,7 @@ export const Route = createFileRoute("/admin")({
 function PainelAdmin() {
   const [autenticado, setAutenticado] = useState(() => isAdminAuthenticated());
   const [tabAtiva, setTabAtiva] = useState<"caixa" | "produtos" | "config">("caixa");
+  const [modalNuvemAberto, setModalNuvemAberto] = useState(false);
 
   useEffect(() => {
     return onAuthChange(() => {
@@ -170,6 +172,25 @@ function PainelAdmin() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setModalNuvemAberto(true)}
+              title="Status e configuração da sincronização em nuvem e emparelhamento com telemóvel"
+              className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold transition-colors cursor-pointer ${
+                isCloudConfigured()
+                  ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25"
+                  : "bg-amber-500/10 border-amber-500/30 text-amber-300 hover:bg-amber-500/20"
+              }`}
+            >
+              {isCloudConfigured() ? (
+                <Cloud className="h-3.5 w-3.5 text-emerald-400" />
+              ) : (
+                <CloudOff className="h-3.5 w-3.5 text-amber-400" />
+              )}
+              <span className="hidden sm:inline">
+                {isCloudConfigured() ? "Nuvem Conectada" : "Configurar Nuvem"}
+              </span>
+            </button>
             <Link
               to="/cozinha"
               className="inline-flex items-center gap-1.5 rounded-xl bg-amber-500/15 border border-amber-500/30 hover:bg-amber-500/25 px-3 py-1.5 text-xs font-bold text-amber-300 transition-colors"
@@ -201,6 +222,12 @@ function PainelAdmin() {
         {tabAtiva === "produtos" && <TabProdutos />}
         {tabAtiva === "config" && <TabConfiguracoes />}
       </main>
+
+      {/* Modal de Configuração e Emparelhamento de Nuvem */}
+      <ModalConfigNuvem
+        isOpen={modalNuvemAberto}
+        onClose={() => setModalNuvemAberto(false)}
+      />
     </div>
   );
 }
@@ -774,6 +801,7 @@ function TabProdutos() {
   const [modoNovaCategoria, setModoNovaCategoria] = useState(false);
   const [novoNomeCategoria, setNovoNomeCategoria] = useState("");
   const [sincronizandoNuvem, setSincronizandoNuvem] = useState(false);
+  const [modalNuvemTabAberto, setModalNuvemTabAberto] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSincronizarNuvem = async () => {
@@ -946,26 +974,28 @@ function TabProdutos() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {isCloudConfigured() ? (
-            <button
-              type="button"
-              onClick={handleSincronizarNuvem}
-              disabled={sincronizandoNuvem}
-              title="Sincronizar todo o catálogo local com a nuvem (Supabase)"
-              className="tap flex items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-2 text-xs font-bold text-emerald-300 transition-colors cursor-pointer"
-            >
-              <Cloud className="h-3.5 w-3.5 text-emerald-400" />
-              <span>{sincronizandoNuvem ? "Sincronizando..." : "Nuvem Conectada"}</span>
-            </button>
-          ) : (
-            <span
-              title="Sincronização em nuvem opcional desligada. O site está operando normalmente no modo local com fallback de fábrica."
-              className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] font-medium text-white/50"
-            >
-              <CloudOff className="h-3 w-3 text-amber-400/80" />
-              <span>Modo Local / Fábrica</span>
-            </span>
-          )}
+          <button
+            type="button"
+            onClick={() => setModalNuvemTabAberto(true)}
+            title="Gerenciar conexão em nuvem, sincronização em tempo real e emparelhamento com telemóvel"
+            className={`tap flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-bold transition-all cursor-pointer ${
+              isCloudConfigured()
+                ? "border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300"
+                : "border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300"
+            }`}
+          >
+            {isCloudConfigured() ? (
+              <>
+                <Cloud className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Nuvem Conectada</span>
+              </>
+            ) : (
+              <>
+                <CloudOff className="h-3.5 w-3.5 text-amber-400" />
+                <span>Configurar Nuvem</span>
+              </>
+            )}
+          </button>
 
           <button
             onClick={handleRestaurarPadrao}
@@ -1421,6 +1451,13 @@ function TabProdutos() {
           </div>
         </div>
       )}
+
+      {/* Modal de Configuração da Nuvem */}
+      <ModalConfigNuvem
+        isOpen={modalNuvemTabAberto}
+        onClose={() => setModalNuvemTabAberto(false)}
+        onConfigChange={() => carregarProdutosECategorias()}
+      />
     </div>
   );
 }

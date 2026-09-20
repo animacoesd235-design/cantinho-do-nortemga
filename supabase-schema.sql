@@ -19,6 +19,9 @@ create table if not exists public.products (
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- Habilita réplica completa para entregar todos os campos nos eventos em tempo real
+alter table public.products replica identity full;
+
 -- 2. Habilitação de Row Level Security (RLS)
 alter table public.products enable row level security;
 
@@ -30,7 +33,6 @@ create policy "Cardápio público para todos"
   using (true);
 
 -- 4. Política de Gravação Pública/Anon (Permite ao Admin sincronizar)
--- Nota: Para máxima segurança, você pode configurar chave de serviço ou auth no futuro.
 drop policy if exists "Permitir sincronização de produtos" on public.products;
 create policy "Permitir sincronização de produtos"
   on public.products
@@ -39,4 +41,12 @@ create policy "Permitir sincronização de produtos"
   with check (true);
 
 -- 5. Habilitação de Realtime para a tabela de produtos
-alter publication supabase_realtime add table public.products;
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables 
+    where pubname = 'supabase_realtime' and tablename = 'products'
+  ) then
+    alter publication supabase_realtime add table public.products;
+  end if;
+end $$;
