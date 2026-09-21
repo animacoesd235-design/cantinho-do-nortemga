@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CheckCircle, ShoppingBag, X } from "lucide-react";
 
 interface SocialNotification {
@@ -14,7 +14,7 @@ const NOTIFICACOES: SocialNotification[] = [
     id: 1,
     nome: "Mariana",
     local: "Zona 03",
-    item: "1x Kit Completo",
+    item: "1x Kit Completo (Açaí + Farinhas)",
     tempo: "há 2 minutos",
   },
   {
@@ -28,63 +28,189 @@ const NOTIFICACOES: SocialNotification[] = [
     id: 3,
     nome: "Patrícia",
     local: "Zona 07",
-    item: "2L de Açaí + Farinha",
+    item: "1x Combo 2L Açaí + 1L Farinha",
     tempo: "há 7 minutos",
   },
   {
     id: 4,
     nome: "Rodrigo",
     local: "Parque do Ingá",
-    item: "1x Kit Completo",
+    item: "1x Kit Completo Lacrado",
     tempo: "há 3 minutos",
   },
   {
     id: 5,
     nome: "Camila",
     local: "Vila Operária",
-    item: "1x Açaí Puro Batido + Tapioca",
+    item: "1x Açaí Puro Batido 1L + Tapioca",
     tempo: "há 6 minutos",
   },
   {
     id: 6,
     nome: "Guilherme",
-    local: "Zona 01",
-    item: "1x Kit Completo",
+    local: "Zona 01 (Centro)",
+    item: "1x Combo 1L Açaí + 1L Farinha",
     tempo: "há 1 minuto",
+  },
+  {
+    id: 7,
+    nome: "Fernanda",
+    local: "Jardim Maringá",
+    item: "1x Combo Açaí + Farinha + Charque",
+    tempo: "há 5 minutos",
+  },
+  {
+    id: 8,
+    nome: "Thiago",
+    local: "Zona 05",
+    item: "1x Combo 3L Açaí + 2L Farinha",
+    tempo: "há 8 minutos",
+  },
+  {
+    id: 9,
+    nome: "Beatriz",
+    local: "Jardim Mandacaru",
+    item: "1x Combo Açaí + Tapioca + Camarão",
+    tempo: "há 4 minutos",
+  },
+  {
+    id: 10,
+    nome: "Marcelo",
+    local: "Zona 02",
+    item: "1x Garrafa Açaí Puro Batido 1L",
+    tempo: "há 9 minutos",
+  },
+  {
+    id: 11,
+    nome: "Juliana",
+    local: "Novo Horizonte",
+    item: "1x Combo Açaí + Farinha + Conserva",
+    tempo: "há 3 minutos",
+  },
+  {
+    id: 12,
+    nome: "Eduardo",
+    local: "Zona 04",
+    item: "1x Kit Completo (Açaí + Farinhas)",
+    tempo: "há 6 minutos",
+  },
+  {
+    id: 13,
+    nome: "Letícia",
+    local: "Jardim Aclimação",
+    item: "1x Pote 250g Camarão Salgado",
+    tempo: "há 2 minutos",
+  },
+  {
+    id: 14,
+    nome: "Bruno",
+    local: "Gleba Palhano / Aeroporto",
+    item: "1x Combo Açaí + Camarão",
+    tempo: "há 7 minutos",
+  },
+  {
+    id: 15,
+    nome: "Amanda",
+    local: "Cidade Monções",
+    item: "1x Garrafa Tucupi 1L + Farinha",
+    tempo: "há 5 minutos",
+  },
+  {
+    id: 16,
+    nome: "Rafael",
+    local: "Zona 08",
+    item: "1x Combo 2L Açaí + 1L Farinha",
+    tempo: "há 10 minutos",
+  },
+  {
+    id: 17,
+    nome: "Larissa",
+    local: "Jardim Universitário",
+    item: "1x Açaí Puro Batido 1L",
+    tempo: "há 4 minutos",
+  },
+  {
+    id: 18,
+    nome: "Felipe",
+    local: "Vila Bosque",
+    item: "1x Combo Açaí + Tapioca + Camarão",
+    tempo: "há 8 minutos",
   },
 ];
 
+/**
+ * Seleciona a próxima notificação garantindo que nomes recentes não se repitam.
+ */
+function sortearProximoIndex(ultimoIndex: number, historicoRecente: number[]): number {
+  // Filtra itens já exibidos recentemente e evita o mesmo da última rodada
+  const candidatos = NOTIFICACOES.map((_, i) => i).filter(
+    (i) => i !== ultimoIndex && !historicoRecente.includes(i)
+  );
+
+  const pool =
+    candidatos.length > 0
+      ? candidatos
+      : NOTIFICACOES.map((_, i) => i).filter((i) => i !== ultimoIndex);
+
+  const sorteado = pool[Math.floor(Math.random() * pool.length)];
+  return sorteado;
+}
+
 export function SocialProofToast() {
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(() => Math.floor(Math.random() * NOTIFICACOES.length));
   const [visivel, setVisivel] = useState(false);
   const [dispensado, setDispensado] = useState(false);
+  const historicoRef = useRef<number[]>([]);
 
   useEffect(() => {
     if (dispensado) return;
 
-    // Primeiro toast aparece após 4 segundos
-    const initialTimer = setTimeout(() => {
-      setVisivel(true);
-    }, 4000);
+    let cancelado = false;
+    let timerId: any = null;
 
-    // Loop de ciclo: visível por 6s, oculto por 9s (ciclo de 15s)
-    const interval = setInterval(() => {
-      setVisivel(false);
-      setTimeout(() => {
-        setIndex((prev) => (prev + 1) % NOTIFICACOES.length);
+    // Função cíclica com intervalo de 12.5 a 13 segundos entre aparições
+    // Visível por 5.5s (leitura calma e natural), recolhido por 7s (total de 12.5s)
+    const agendarCiclo = (atrasoEspera: number) => {
+      timerId = setTimeout(() => {
+        if (cancelado) return;
+
+        // Seleciona a próxima notificação evitando qualquer repetição recente
+        setIndex((prevIndex) => {
+          const proximo = sortearProximoIndex(prevIndex, historicoRef.current);
+          // Mantém um histórico das últimas 8 notificações para rotação diversificada
+          historicoRef.current = [proximo, ...historicoRef.current.slice(0, 7)];
+          return proximo;
+        });
+
+        // Revela o pop-up com transição suave
         setVisivel(true);
-      }, 9000);
-    }, 15000);
+
+        // Permanece visível por 5.5s para leitura confortável
+        timerId = setTimeout(() => {
+          if (cancelado) return;
+
+          // Recolhe suavemente
+          setVisivel(false);
+
+          // Aguarda 7 segundos recolhido antes da próxima aparição
+          // (5.5s visível + 7.0s recolhido = 12.5 segundos de intervalo entre pop-ups)
+          agendarCiclo(7000);
+        }, 5500);
+      }, atrasoEspera);
+    };
+
+    // Primeira aparição suave após 4.5 segundos da abertura da página
+    agendarCiclo(4500);
 
     return () => {
-      clearTimeout(initialTimer);
-      clearInterval(interval);
+      cancelado = true;
+      if (timerId) clearTimeout(timerId);
     };
   }, [dispensado]);
 
   if (dispensado) return null;
 
-  const current = NOTIFICACOES[index];
+  const current = NOTIFICACOES[index] || NOTIFICACOES[0];
 
   return (
     <div
