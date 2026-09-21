@@ -1,10 +1,8 @@
-import { Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Bike,
   Clock,
-  ExternalLink,
   Gift,
   MapPin,
   Minus,
@@ -718,37 +716,18 @@ function Footer({
             </div>
           </div>
 
-          {/* Links e Acessos Rápidos no Rodapé */}
-          <div className="mt-6 pt-5 border-t border-border/50 flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-2">
-              {temPedidoAtivo && (
-                <button
-                  onClick={onAbrirRastreio}
-                  className="tap inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-200 font-bold px-3 py-1.5 border border-amber-500/30 transition-colors"
-                >
-                  <Bike className="h-3.5 w-3.5 text-amber-600" />
-                  <span>Rastrear Meu Pedido Ativo</span>
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-3 text-xs">
-              <Link
-                to="/admin"
-                className="text-muted-foreground hover:text-amber-500 transition-colors inline-flex items-center gap-1 opacity-70 hover:opacity-100"
+          {/* Rastreio do Cliente (se houver pedido ativo) */}
+          {temPedidoAtivo && (
+            <div className="mt-6 pt-5 border-t border-border/50 flex items-center justify-center text-xs">
+              <button
+                onClick={onAbrirRastreio}
+                className="tap inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 hover:bg-amber-500/25 text-amber-900 dark:text-amber-200 font-bold px-4 py-2 border border-amber-500/30 transition-colors"
               >
-                <span>🔒 Acesso Restrito</span>
-              </Link>
-              <span className="text-muted-foreground/40">•</span>
-              <Link
-                to="/cozinha"
-                className="text-muted-foreground hover:text-forest transition-colors inline-flex items-center gap-1 opacity-70 hover:opacity-100"
-              >
-                <ExternalLink className="h-3 w-3" />
-                <span>Painel Cozinha (KDS)</span>
-              </Link>
+                <Bike className="h-3.5 w-3.5 text-amber-600" />
+                <span>Rastrear Meu Pedido Ativo</span>
+              </button>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Linha final sutil */}

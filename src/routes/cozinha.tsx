@@ -10,6 +10,11 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  Eye,
+  EyeOff,
+  KeyRound,
+  Lock,
+  LogOut,
   MapPin,
   MessageSquare,
   Package,
@@ -18,6 +23,7 @@ import {
   Printer,
   RefreshCw,
   Send,
+  ShieldCheck,
   Sparkles,
   Trash2,
   UtensilsCrossed,
@@ -27,6 +33,12 @@ import { toast } from "sonner";
 import logo from "@/assets/logo-cantinho.png";
 import { ThermalReceipt } from "@/components/ThermalReceipt";
 import { brl } from "@/lib/menu-data";
+import {
+  isKitchenAuthenticated,
+  loginKitchen,
+  logoutKitchen,
+  onAuthChange,
+} from "@/lib/auth";
 import {
   buildWhatsAppStatusUrl,
   clearOrders,
@@ -49,16 +61,29 @@ export const Route = createFileRoute("/cozinha")({
 });
 
 function PainelCozinha() {
+  const [autenticado, setAutenticado] = useState(() => isKitchenAuthenticated());
   const [pedidos, setPedidos] = useState<Order[]>([]);
   const [pedidoImprimir, setPedidoImprimir] = useState<Order | null>(null);
 
   useEffect(() => {
+    return onAuthChange(() => {
+      setAutenticado(isKitchenAuthenticated());
+    });
+  }, []);
+
+  const handleLogout = () => {
+    logoutKitchen();
+    toast.info("Painel da Cozinha trancado com sucesso.");
+  };
+
+  useEffect(() => {
+    if (!autenticado) return;
     setPedidos(getOrders());
     const cleanup = onOrdersUpdate(() => {
       setPedidos(getOrders());
     });
     return cleanup;
-  }, []);
+  }, [autenticado]);
 
   // FILTRO OBRIGATÓRIO: Apenas pedidos confirmados entram na esteira de produção da cozinha
   // Pedidos pagos via Pix aguardando QR Code/transferência NÃO são enviados para produção
@@ -159,6 +184,10 @@ function PainelCozinha() {
     toast.success("Pedido de teste criado no KDS!");
   };
 
+  if (!autenticado) {
+    return <TelaLoginCozinha onSucesso={() => setAutenticado(true)} />;
+  }
+
   return (
     <div className="min-h-screen bg-[#0e1611] text-[#f4f7f4] pb-16 font-sans">
       {/* Barra de Topo do KDS */}
@@ -236,6 +265,15 @@ function PainelCozinha() {
               <ArrowLeft className="h-3.5 w-3.5" />
               <span>Voltar ao Cardápio</span>
             </Link>
+
+            <button
+              onClick={handleLogout}
+              className="tap inline-flex items-center gap-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 px-3.5 py-2 text-xs font-bold text-red-300 transition-colors shadow-xs"
+              title="Trancar Painel da Cozinha"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span>Sair / Trancar</span>
+            </button>
           </div>
         </div>
       </header>
@@ -585,6 +623,176 @@ function EmptyColumn({ texto }: { texto: string }) {
     <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 p-8 text-center text-white/40">
       <UtensilsCrossed className="h-8 w-8 mb-2 stroke-1 text-white/30" />
       <p className="text-xs">{texto}</p>
+    </div>
+  );
+}
+
+// =========================================================================
+// TELA DE LOGIN DO PAINEL DA COZINHA (KDS)
+// =========================================================================
+
+function TelaLoginCozinha({ onSucesso }: { onSucesso: () => void }) {
+  const [senha, setSenha] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
+  const [erro, setErro] = useState(false);
+  const [tentando, setTentando] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!senha.trim()) return;
+
+    setTentando(true);
+    setErro(false);
+
+    setTimeout(() => {
+      const ok = loginKitchen(senha);
+      setTentando(false);
+      if (ok) {
+        toast.success("Acesso à Cozinha autorizado!");
+        onSucesso();
+      } else {
+        setErro(true);
+        toast.error("Senha incorreta. Verifique suas credenciais da cozinha.");
+      }
+    }, 250);
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0e1611] text-[#f4f7f4] antialiased flex flex-col justify-between font-sans">
+      {/* Header simplificado */}
+      <header className="border-b border-white/10 bg-[#0a100c]/95 backdrop-blur-md px-4 py-3 shadow-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between">
+          <Link to="/" className="flex items-center gap-2 group">
+            <img
+              src={logo}
+              alt="Cantinho do Norte"
+              className="h-9 w-9 rounded-full object-cover border border-emerald-400/40 shadow-xs group-hover:scale-105 transition-transform"
+            />
+            <div>
+              <span className="block text-sm font-black font-display tracking-wide text-emerald-300">
+                CANTINHO DO NORTE
+              </span>
+              <span className="block text-[11px] font-semibold text-white/60">
+                Painel da Cozinha (KDS)
+              </span>
+            </div>
+          </Link>
+
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-white/10 hover:bg-white/15 px-3.5 py-1.5 text-xs font-bold text-white transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Voltar ao Cardápio</span>
+          </Link>
+        </div>
+      </header>
+
+      {/* Card Central de Login */}
+      <main className="flex-1 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="relative overflow-hidden rounded-3xl border border-emerald-500/25 bg-[#0a100c] p-6 sm:p-8 shadow-2xl backdrop-blur-xl">
+            {/* Glows decorativos sutis */}
+            <div className="pointer-events-none absolute -top-24 -right-24 h-48 w-48 rounded-full bg-emerald-500/10 blur-3xl" />
+            <div className="pointer-events-none absolute -bottom-24 -left-24 h-48 w-48 rounded-full bg-amber-500/10 blur-3xl" />
+
+            <div className="relative z-10 flex flex-col items-center text-center">
+              {/* Ícone de Cadeado com Selo de Cozinha */}
+              <div className="relative mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/20 to-emerald-900/30 border border-emerald-400/30 text-emerald-300 shadow-inner">
+                <Lock className="h-8 w-8 text-emerald-400" />
+                <div className="absolute -bottom-1 -right-1 rounded-full bg-[#0a100c] p-0.5">
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                </div>
+              </div>
+
+              <h1 className="text-xl font-black font-display tracking-wide text-emerald-300">
+                Acesso à Cozinha (KDS)
+              </h1>
+              <p className="mt-1 text-xs text-white/60 max-w-xs">
+                Área restrita à equipe de preparo e expedição de pedidos do Cantinho do Norte.
+              </p>
+
+              {/* Formulário de Senha */}
+              <form onSubmit={handleSubmit} className="mt-6 w-full space-y-4 text-left">
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-xs font-bold text-white/80">
+                      Senha de Acesso
+                    </label>
+                    <span className="text-[10px] text-emerald-400/80 font-semibold">
+                      Padrão: admin123
+                    </span>
+                  </div>
+
+                  <div className="relative">
+                    <input
+                      type={mostrarSenha ? "text" : "password"}
+                      value={senha}
+                      onChange={(e) => {
+                        setSenha(e.target.value);
+                        if (erro) setErro(false);
+                      }}
+                      placeholder="Digite a senha da cozinha ou admin..."
+                      autoFocus
+                      className={`w-full rounded-xl border bg-black/40 pl-3.5 pr-11 py-3 text-sm text-white placeholder-white/30 outline-none transition-all ${
+                        erro
+                          ? "border-red-500 ring-2 ring-red-500/20"
+                          : "border-white/15 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-400/20"
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setMostrarSenha(!mostrarSenha)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
+                    >
+                      {mostrarSenha ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </button>
+                  </div>
+
+                  {erro && (
+                    <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-red-400">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                      <span>Senha incorreta. Use a senha de acesso da cozinha ou admin.</span>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={tentando || !senha.trim()}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-black py-3 px-4 font-black text-sm transition-all shadow-lg hover:shadow-emerald-500/20 active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {tentando ? (
+                    <div className="h-5 w-5 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                  ) : (
+                    <>
+                      <KeyRound className="h-4 w-4" />
+                      <span>Desbloquear Cozinha</span>
+                    </>
+                  )}
+                </button>
+              </form>
+
+              {/* Informações adicionais / Atalho */}
+              <div className="mt-6 pt-4 border-t border-white/10 w-full flex items-center justify-between text-[11px] text-white/40">
+                <span>Cantinho do Norte KDS</span>
+                <Link to="/admin" className="hover:text-emerald-300 transition-colors">
+                  Ir para Admin →
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <footer className="py-4 text-center text-xs text-white/30 border-t border-white/5">
+        Área restrita de produção • Cantinho do Norte Maringá / PR
+      </footer>
     </div>
   );
 }
