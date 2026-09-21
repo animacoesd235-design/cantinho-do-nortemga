@@ -171,8 +171,8 @@ function PainelCozinha() {
         },
       ],
       subtotal: 73,
-      taxaEntrega: 7,
-      total: 80,
+      taxaEntrega: 9,
+      total: 82,
       pagamento: {
         metodo: "pix",
         status: "pago",
