@@ -9,6 +9,7 @@ import {
   Clock,
   DollarSign,
   Edit,
+  ExternalLink,
   Eye,
   EyeOff,
   Image as ImageIcon,
@@ -16,12 +17,17 @@ import {
   Loader2,
   Lock,
   LogOut,
+  MapPin,
   Minus,
   Package,
+  Phone,
   Plus,
   Power,
+  Printer,
+  RefreshCw,
   RotateCcw,
   Save,
+  Send,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -29,6 +35,7 @@ import {
   TrendingUp,
   Unlock,
   Upload,
+  UtensilsCrossed,
   Wallet,
   X,
   Trash2,
@@ -38,11 +45,26 @@ import {
 import { toast } from "sonner";
 import logo from "@/assets/logo-cantinho.png";
 import { ModalConfigNuvem } from "@/components/ModalConfigNuvem";
+import { ThermalReceipt } from "@/components/ThermalReceipt";
 import { compressImageFile } from "@/lib/image-utils";
+import { checkPixPaymentStatus } from "@/lib/mercadopago-client";
+import {
+  buildWhatsAppStatusUrl,
+  deleteOrder,
+  generateOrderId,
+  getOrders,
+  isOrderConfirmed,
+  onOrdersUpdate,
+  saveOrder,
+  updateOrderPaymentStatus,
+  updateOrderStatus,
+  type Order,
+} from "@/lib/orders";
 import {
   isAdminAuthenticated,
   loginAdmin,
   logoutAdmin,
+
   onAuthChange,
 } from "@/lib/auth";
 import {
@@ -93,7 +115,7 @@ export const Route = createFileRoute("/admin")({
 
 function PainelAdmin() {
   const [autenticado, setAutenticado] = useState(() => isAdminAuthenticated());
-  const [tabAtiva, setTabAtiva] = useState<"caixa" | "produtos" | "config">("caixa");
+  const [tabAtiva, setTabAtiva] = useState<"caixa" | "pedidos" | "produtos" | "config">("caixa");
   const [modalNuvemAberto, setModalNuvemAberto] = useState(false);
 
   useEffect(() => {
@@ -146,6 +168,17 @@ function PainelAdmin() {
             >
               <Wallet className="h-4 w-4" />
               <span>Caixa</span>
+            </button>
+            <button
+              onClick={() => setTabAtiva("pedidos")}
+              className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
+                tabAtiva === "pedidos"
+                  ? "bg-amber-500 text-black shadow-md"
+                  : "text-white/70 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <UtensilsCrossed className="h-4 w-4" />
+              <span>Pedidos</span>
             </button>
             <button
               onClick={() => setTabAtiva("produtos")}
@@ -219,6 +252,7 @@ function PainelAdmin() {
       {/* Conteúdo Principal */}
       <main className="mx-auto max-w-7xl px-4 pt-6">
         {tabAtiva === "caixa" && <TabCaixa />}
+        {tabAtiva === "pedidos" && <TabPedidos />}
         {tabAtiva === "produtos" && <TabProdutos />}
         {tabAtiva === "config" && <TabConfiguracoes />}
       </main>
@@ -789,7 +823,410 @@ function TabCaixa() {
 }
 
 // =========================================================================
-// ABA 2: GESTÃO DE PRODUTOS
+// ABA 2: GESTÃO DE PEDIDOS (DELIVERY & EXPEDIÇÃO)
+// =========================================================================
+
+function TabPedidos() {
+  const [pedidos, setPedidos] = useState<Order[]>(() => getOrders());
+  const [filtro, setFiltro] = useState<"todos" | "novos" | "preparo" | "prontos" | "pendentes_pix">("todos");
+  const [pedidoImprimir, setPedidoImprimir] = useState<Order | null>(null);
+  const [verificandoPixId, setVerificandoPixId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setPedidos(getOrders());
+    const cleanup = onOrdersUpdate(() => {
+      setPedidos(getOrders());
+    });
+    return cleanup;
+  }, []);
+
+  const pedidosConfirmados = pedidos.filter(isOrderConfirmed);
+  const pixPendentes = pedidos.filter(
+    (p) => p.pagamento.metodo === "pix" && p.pagamento.status !== "pago"
+  );
+
+  const novos = pedidosConfirmados.filter((p) => p.status === "novo");
+  const emPreparo = pedidosConfirmados.filter((p) => p.status === "preparo");
+  const prontos = pedidosConfirmados.filter((p) => p.status === "pronto");
+
+  let listaExibida: Order[] = [];
+  if (filtro === "todos") listaExibida = pedidosConfirmados;
+  else if (filtro === "novos") listaExibida = novos;
+  else if (filtro === "preparo") listaExibida = emPreparo;
+  else if (filtro === "prontos") listaExibida = prontos;
+  else if (filtro === "pendentes_pix") listaExibida = pixPendentes;
+
+  const handleImprimir = (pedido: Order) => {
+    setPedidoImprimir(pedido);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
+  const moverStatus = (orderId: string, novoStatus: Order["status"]) => {
+    updateOrderStatus(orderId, novoStatus);
+    toast.success(`Pedido ${orderId} atualizado para "${novoStatus.toUpperCase()}"!`);
+  };
+
+  const excluir = (orderId: string) => {
+    if (confirm(`Remover pedido ${orderId}?`)) {
+      deleteOrder(orderId);
+      toast("Pedido removido com sucesso");
+    }
+  };
+
+  const handleChecarPixMercadoPago = async (pedido: Order) => {
+    if (!pedido.pagamento.mercadoPagoId) {
+      toast.info("Este pedido não possui ID de transação do Mercado Pago registrado.");
+      return;
+    }
+    try {
+      setVerificandoPixId(pedido.id);
+      const res = await checkPixPaymentStatus(pedido.pagamento.mercadoPagoId, pedido.id);
+      if (res.is_paid || res.status === "approved") {
+        updateOrderPaymentStatus(pedido.id, "pago", pedido.pagamento.mercadoPagoId);
+        toast.success(`Pagamento do Pedido ${pedido.id} confirmado pelo Mercado Pago!`, {
+          description: "O pedido foi aprovado, enviado à produção da cozinha e somado ao caixa.",
+        });
+      } else {
+        toast.info(`Pix do pedido ${pedido.id} ainda não consta como aprovado no Mercado Pago.`);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Erro ao consultar status no Mercado Pago.");
+    } finally {
+      setVerificandoPixId(null);
+    }
+  };
+
+  const handleConfirmarPixManualmente = (pedido: Order) => {
+    if (confirm(`Confirmar manualmente o pagamento do Pedido ${pedido.id}? Ele será enviado para a produção da cozinha e contabilizado no caixa.`)) {
+      updateOrderPaymentStatus(pedido.id, "pago", pedido.pagamento.mercadoPagoId);
+      toast.success(`Pedido ${pedido.id} confirmado como PAGO!`);
+    }
+  };
+
+  const enviarZap = (
+    pedido: Order,
+    tipo: "etapa1_confirmacao" | "etapa2_preparo" | "etapa3_saiu_entrega"
+  ) => {
+    const url = buildWhatsAppStatusUrl(pedido, tipo);
+    window.open(url, "_blank");
+    toast.success("Mensagem do WhatsApp aberta com sucesso!");
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Top Banner da Gestão de Pedidos */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-3xl border border-white/10 bg-[#121c15] p-5 shadow-xl">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-xl font-black font-display text-white">Central de Pedidos (Delivery)</h2>
+            <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-0.5 text-[10px] font-extrabold text-emerald-300">
+              {pedidosConfirmados.length} Confirmado(s)
+            </span>
+          </div>
+          <p className="text-xs text-white/60">
+            Apenas pedidos com pagamento confirmado entram na produção da cozinha e no faturamento do caixa.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link
+            to="/cozinha"
+            className="tap inline-flex items-center gap-1.5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-black px-4 py-2 text-xs font-black shadow-lg transition-all"
+          >
+            <UtensilsCrossed className="h-4 w-4" />
+            <span>Abrir Cozinha (KDS)</span>
+          </Link>
+        </div>
+      </div>
+
+      {/* Filtros de Status */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 pb-3">
+        <button
+          onClick={() => setFiltro("todos")}
+          className={`tap px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            filtro === "todos"
+              ? "bg-amber-500 text-black shadow-sm"
+              : "bg-white/5 text-white/70 hover:bg-white/10"
+          }`}
+        >
+          Todos Confirmados ({pedidosConfirmados.length})
+        </button>
+        <button
+          onClick={() => setFiltro("novos")}
+          className={`tap px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            filtro === "novos"
+              ? "bg-amber-500 text-black shadow-sm"
+              : "bg-white/5 text-white/70 hover:bg-white/10"
+          }`}
+        >
+          Novos ({novos.length})
+        </button>
+        <button
+          onClick={() => setFiltro("preparo")}
+          className={`tap px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            filtro === "preparo"
+              ? "bg-sky-500 text-black shadow-sm"
+              : "bg-white/5 text-white/70 hover:bg-white/10"
+          }`}
+        >
+          Em Preparo ({emPreparo.length})
+        </button>
+        <button
+          onClick={() => setFiltro("prontos")}
+          className={`tap px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+            filtro === "prontos"
+              ? "bg-emerald-500 text-black shadow-sm"
+              : "bg-white/5 text-white/70 hover:bg-white/10"
+          }`}
+        >
+          Prontos / Em Rota ({prontos.length})
+        </button>
+        <button
+          onClick={() => setFiltro("pendentes_pix")}
+          className={`tap px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+            filtro === "pendentes_pix"
+              ? "bg-amber-600/60 text-amber-100 border border-amber-500/50 shadow-sm"
+              : "bg-amber-950/30 text-amber-300/80 border border-amber-500/20 hover:bg-amber-950/50"
+          }`}
+        >
+          <Clock className="h-3 w-3 text-amber-400" />
+          <span>Aguardando Pix ({pixPendentes.length})</span>
+        </button>
+      </div>
+
+      {/* Banner de Alerta para Pix Pendentes */}
+      {filtro === "pendentes_pix" && (
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-start gap-3 text-xs">
+          <AlertTriangle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <span className="font-bold text-amber-300 block">
+              Atenção: Pedidos com Pagamento Pix Pendente
+            </span>
+            <p className="text-amber-200/80 leading-relaxed">
+              Estes pedidos geraram o QR Code mas ainda não foram confirmados pelo banco. Eles <strong>NÃO</strong> são enviados para a Cozinha (/cozinha) e <strong>NÃO</strong> entram no caixa até serem confirmados.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Lista de Pedidos */}
+      {listaExibida.length === 0 ? (
+        <div className="rounded-3xl border border-dashed border-white/10 p-12 text-center text-white/40 space-y-2">
+          <UtensilsCrossed className="h-10 w-10 mx-auto stroke-1 text-white/30" />
+          <p className="text-sm font-semibold">Nenhum pedido nesta categoria.</p>
+          <p className="text-xs text-white/30">
+            {filtro === "pendentes_pix"
+              ? "Nenhum cliente com pagamento Pix pendente no momento."
+              : "Os novos pedidos confirmados aparecerão aqui em tempo real."}
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {listaExibida.map((pedido) => {
+            const hora = new Date(pedido.createdAt).toLocaleTimeString("pt-BR", {
+              hour: "2-digit",
+              minute: "2-digit",
+            });
+            const dataStr = new Date(pedido.createdAt).toLocaleDateString("pt-BR");
+            const primeiroNome = (pedido.cliente.nome || "").trim().split(" ")[0] || "Cliente";
+            const isPixPendente = pedido.pagamento.metodo === "pix" && pedido.pagamento.status !== "pago";
+
+            return (
+              <div
+                key={pedido.id}
+                className={`rounded-2xl border p-4 shadow-md transition-all space-y-3 ${
+                  isPixPendente
+                    ? "border-amber-500/30 bg-[#161a14]"
+                    : "border-white/10 bg-[#121c15] hover:border-white/20"
+                }`}
+              >
+                {/* Cabeçalho do Card */}
+                <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-amber-300 font-display text-base">
+                        {pedido.id}
+                      </span>
+                      <span className="text-[11px] text-white/50">
+                        {dataStr} às {hora}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    {pedido.pagamento.status === "pago" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 border border-emerald-500/40 px-2 py-0.5 text-[10px] font-extrabold text-emerald-300">
+                        <Check className="h-2.5 w-2.5" /> PIX PAGO
+                      </span>
+                    ) : isPixPendente ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 text-[10px] font-extrabold text-amber-300">
+                        <Clock className="h-2.5 w-2.5" /> PIX PENDENTE
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 border border-amber-500/40 px-2 py-0.5 text-[10px] font-extrabold text-amber-300">
+                        PAGAR ENTREGA
+                      </span>
+                    )}
+
+                    <button
+                      onClick={() => excluir(pedido.id)}
+                      title="Remover pedido"
+                      className="text-white/30 hover:text-red-400 p-1 text-xs transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Cliente */}
+                <div className="flex items-start justify-between text-xs">
+                  <div>
+                    <span className="text-[10px] text-white/50 block">Cliente</span>
+                    <span className="text-sm font-bold text-white">{pedido.cliente.nome}</span>
+                  </div>
+                  <a
+                    href={`https://wa.me/55${pedido.cliente.telefone.replace(/\D/g, "")}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 text-[11px] text-emerald-400 hover:underline bg-emerald-950/50 px-2 py-1 rounded-lg border border-emerald-500/30"
+                  >
+                    <Phone className="h-3 w-3" />
+                    <span>{pedido.cliente.telefone}</span>
+                  </a>
+                </div>
+
+                {/* Endereço */}
+                <div className="rounded-xl bg-[#0d1710] p-2.5 border border-white/5 text-xs space-y-0.5">
+                  <div className="flex items-center gap-1 text-amber-300 text-[10px] font-bold">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    <span>ENTREGA:</span>
+                  </div>
+                  <p className="font-semibold text-white text-xs">
+                    {pedido.endereco.rua}, Nº {pedido.endereco.numero} ({pedido.endereco.bairro})
+                  </p>
+                  {pedido.endereco.referencia && (
+                    <p className="text-[11px] text-white/50 italic">Ref: {pedido.endereco.referencia}</p>
+                  )}
+                </div>
+
+                {/* Itens */}
+                <div className="space-y-1 text-xs border-y border-white/10 py-2">
+                  {pedido.itens.map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-white">
+                      <span>
+                        {item.qtd}x {item.nome}
+                      </span>
+                      <span className="text-amber-300 font-bold">{brl(item.preco * item.qtd)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Valor e Método */}
+                <div className="flex items-center justify-between text-xs pt-0.5">
+                  <div>
+                    <span className="text-[10px] text-white/50 block">Pagamento</span>
+                    <span className="font-bold text-white text-[11px]">
+                      {pedido.pagamento.metodo === "pix"
+                        ? "Pix"
+                        : pedido.pagamento.metodo === "cartao_entrega"
+                        ? "Cartão na Entrega"
+                        : `Dinheiro ${pedido.pagamento.trocoPara ? `(Troco p/ R$ ${pedido.pagamento.trocoPara})` : ""}`}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-white/50 block">Total</span>
+                    <span className="text-base font-black text-amber-300 font-display">
+                      {brl(pedido.total)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Ações para Pix Pendente */}
+                {isPixPendente ? (
+                  <div className="space-y-1.5 pt-2 border-t border-amber-500/20">
+                    <button
+                      type="button"
+                      onClick={() => handleChecarPixMercadoPago(pedido)}
+                      disabled={verificandoPixId === pedido.id}
+                      className="tap w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/40 border border-emerald-500/40 text-emerald-300 text-xs font-bold transition-all disabled:opacity-50 cursor-pointer"
+                    >
+                      <RefreshCw className={`h-3 w-3 ${verificandoPixId === pedido.id ? "animate-spin" : ""}`} />
+                      <span>Checar Pagamento no Mercado Pago</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleConfirmarPixManualmente(pedido)}
+                      className="tap w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 text-[11px] font-semibold transition-all cursor-pointer"
+                    >
+                      <span>Confirmar Manualmente (Comprovante Recebido)</span>
+                    </button>
+                  </div>
+                ) : (
+                  /* Ações para Pedido Confirmado */
+                  <div className="space-y-1.5 pt-2 border-t border-white/10">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleImprimir(pedido)}
+                        className="tap flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-white/5 hover:bg-white/10 text-amber-200 text-[11px] font-bold transition-colors cursor-pointer"
+                      >
+                        <Printer className="h-3 w-3" />
+                        <span>Imprimir</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => enviarZap(pedido, pedido.status === "novo" ? "etapa1_confirmacao" : pedido.status === "preparo" ? "etapa2_preparo" : "etapa3_saiu_entrega")}
+                        className="tap flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl bg-emerald-950/60 hover:bg-emerald-900/60 border border-emerald-500/30 text-emerald-300 text-[11px] font-bold transition-colors cursor-pointer"
+                      >
+                        <Send className="h-3 w-3" />
+                        <span>Avisar Zap</span>
+                      </button>
+                    </div>
+
+                    <div className="flex gap-1.5">
+                      {pedido.status === "novo" && (
+                        <button
+                          onClick={() => moverStatus(pedido.id, "preparo")}
+                          className="tap flex-1 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          Iniciar Preparo ⏳
+                        </button>
+                      )}
+                      {pedido.status === "preparo" && (
+                        <button
+                          onClick={() => moverStatus(pedido.id, "pronto")}
+                          className="tap flex-1 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          Saiu p/ Entrega 🛵
+                        </button>
+                      )}
+                      {pedido.status === "pronto" && (
+                        <button
+                          onClick={() => excluir(pedido.id)}
+                          className="tap flex-1 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-colors cursor-pointer"
+                        >
+                          Marcar como Entregue ✅
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Recibo Térmico Oculto para Impressão */}
+      <ThermalReceipt order={pedidoImprimir} />
+    </div>
+  );
+}
+
+// =========================================================================
+// ABA 3: GESTÃO DE PRODUTOS
 // =========================================================================
 
 function TabProdutos() {

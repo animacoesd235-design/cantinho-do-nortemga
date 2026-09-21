@@ -124,10 +124,15 @@ export function addCashMovement(
 export function registerOrderSale(order: {
   id: string;
   total: number;
-  pagamento: { metodo: string };
+  pagamento: { metodo: string; status?: string };
 }): void {
   const session = getActiveCashSession();
   if (!session || session.status !== "aberto") return;
+
+  // Pedidos via Pix pendentes NUNCA devem ser registrados no caixa
+  if (order.pagamento?.metodo === "pix" && order.pagamento?.status !== "pago") {
+    return;
+  }
 
   // Evitar duplicar mesmo orderId
   const exists = session.movimentos.some((m) => m.orderId === order.id);
@@ -152,6 +157,20 @@ export function registerOrderSale(order: {
   session.movimentos.unshift(movimento);
   localStorage.setItem(STORAGE_ACTIVE_KEY, JSON.stringify(session));
   dispatchCashUpdate();
+}
+
+/**
+ * Remove qualquer lançamento de venda de pedido que esteja pendente/não pago
+ */
+export function removeOrderSaleIfPending(orderId: string): void {
+  const session = getActiveCashSession();
+  if (!session || !session.movimentos) return;
+  const filtered = session.movimentos.filter((m) => m.orderId !== orderId);
+  if (filtered.length !== session.movimentos.length) {
+    session.movimentos = filtered;
+    localStorage.setItem(STORAGE_ACTIVE_KEY, JSON.stringify(session));
+    dispatchCashUpdate();
+  }
 }
 
 export function closeCashSession(

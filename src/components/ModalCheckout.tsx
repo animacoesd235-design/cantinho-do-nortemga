@@ -19,6 +19,8 @@ import { toast } from "sonner";
 import { WHATSAPP, brl } from "@/lib/menu-data";
 import {
   generateOrderId,
+  getOrderById,
+  onOrdersUpdate,
   saveOrder,
   updateOrderPaymentStatus,
   type DeliveryAddress,
@@ -86,6 +88,28 @@ export function ModalCheckout({
       }
     };
   }, []);
+
+  // Escuta confirmações de pagamento em tempo real (Webhook do Mercado Pago / Sincronização em Nuvem)
+  useEffect(() => {
+    if (!currentOrderId || !pixGerado || pixAprovado) return;
+    const cleanup = onOrdersUpdate(() => {
+      const order = getOrderById(currentOrderId);
+      if (order && order.pagamento.status === "pago") {
+        if (pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
+        setPixAprovado(true);
+        toast.success("Pagamento via Pix confirmado!", {
+          description: "Seu pedido foi aprovado pelo Mercado Pago e enviado para a produção da cozinha.",
+        });
+        setTimeout(() => {
+          concluirFluxoPedido(order);
+        }, 1200);
+      }
+    });
+    return cleanup;
+  }, [currentOrderId, pixGerado, pixAprovado]);
 
   const copiarPix = () => {
     if (!codigoPixCopiaCola) return;
@@ -284,12 +308,17 @@ export function ModalCheckout({
       metodoPagamento === "pix"
         ? pedidoFinalizado.pagamento.status === "pago"
           ? "✅ Pix Aprovado no Mercado Pago"
-          : "⏳ Pix (Aguardando conferência)"
+          : "⏳ Pix (Aguardando confirmação bancária)"
         : metodoPagamento === "cartao_entrega"
         ? "💳 Cartão na Entrega (Levar maquininha)"
         : `💵 Dinheiro na Entrega ${trocoPara ? `(Troco p/ R$ ${trocoPara})` : ""}`;
 
     const primeiroNome = pedidoFinalizado.cliente.nome.trim().split(" ")[0] || "Cliente";
+
+    const avisoProducao =
+      metodoPagamento === "pix" && pedidoFinalizado.pagamento.status !== "pago"
+        ? `_⏳ Atenção: Pagamento Pix pendente. O pedido entrará em produção na cozinha imediatamente após a confirmação do pagamento._`
+        : `_🛵 Pedido confirmado e enviado automaticamente para a produção da cozinha!_`;
 
     const msg = [
       `*PEDIDO ${pedidoFinalizado.id} — CANTINHO DO NORTE*`,
@@ -317,7 +346,7 @@ export function ModalCheckout({
       `✨ *MUITO OBRIGADO PELO SEU PEDIDO, ${primeiroNome.toUpperCase()}!*`,
       `Olá, ${primeiroNome}! Foi um verdadeiro prazer ter você como nosso cliente. Preparamos tudo com muito carinho e capricho para você saborear a verdadeira essência da Amazônia na sua casa! 🌿🥥`,
       "",
-      `_Pedido enviado automaticamente para a cozinha!_`,
+      avisoProducao,
     ].join("\n");
 
     window.open(
@@ -738,29 +767,49 @@ export function ModalCheckout({
         </div>
 
         {/* Footer do Modal com Ação Final */}
-        <div className="p-4 sm:p-5 border-t border-border/70 bg-card flex items-center justify-between gap-3">
-          <button
-            onClick={onClose}
-            className="tap px-4 py-2.5 rounded-full border border-border text-xs font-semibold text-muted-foreground hover:bg-secondary"
-          >
-            Voltar ao cardápio
-          </button>
+        <div className="p-4 sm:p-5 border-t border-border/70 bg-card flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center justify-between w-full sm:w-auto gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="tap px-4 py-2.5 rounded-full border border-border text-xs font-semibold text-muted-foreground hover:bg-secondary transition-colors cursor-pointer"
+            >
+              Voltar ao cardápio
+            </button>
+            {metodoPagamento === "pix" && pixGerado && !pixAprovado && (
+              <button
+                type="button"
+                onClick={() => finalizarPedido("pendente")}
+                className="text-[11px] font-semibold text-muted-foreground hover:text-foreground underline transition-colors cursor-pointer"
+                title="Caso prefira enviar o comprovante diretamente para o atendente no WhatsApp"
+              >
+                Enviar comprovante no WhatsApp
+              </button>
+            )}
+          </div>
 
           <button
             onClick={() => {
               if (metodoPagamento === "pix" && !pixGerado) {
                 handleGerarPixMercadoPago();
+              } else if (metodoPagamento === "pix" && !pixAprovado) {
+                handleVerificarStatusManual();
               } else {
                 finalizarPedido(metodoPagamento === "pix" ? (pixAprovado ? "pago" : "pendente") : "pendente");
               }
             }}
-            disabled={gerandoPix}
-            className="tap flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-acai text-acai-foreground text-sm font-extrabold shadow-lg hover:opacity-95 active:scale-95 transition-all disabled:opacity-60"
+            disabled={gerandoPix || verificandoStatusManual}
+            className="tap w-full sm:w-auto flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-acai text-acai-foreground text-sm font-extrabold shadow-lg hover:opacity-95 active:scale-95 transition-all disabled:opacity-60 cursor-pointer"
           >
             {gerandoPix ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin text-white" />
                 <span>Gerando Pix...</span>
+              </>
+            ) : verificandoStatusManual ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-white" />
+                <span>Checando no banco...</span>
               </>
             ) : (
               <>
@@ -771,7 +820,7 @@ export function ModalCheckout({
                       ? "Concluir Pedido Aprovado ✅"
                       : !pixGerado
                       ? "Pagar via Pix (Mercado Pago)"
-                      : "Finalizar Pedido via WhatsApp"
+                      : "Já Paguei (Verificar Pix) 🔄"
                     : "Finalizar Pedido via WhatsApp"}
                 </span>
               </>

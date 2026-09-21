@@ -1,4 +1,4 @@
-import { registerOrderSale } from "./cash-store";
+import { registerOrderSale, removeOrderSaleIfPending } from "./cash-store";
 import { getSupabaseClient, isCloudConfigured } from "./cloud-sync";
 
 export type ExtraItem = {
@@ -94,6 +94,26 @@ const ORDERS_KEY = "cdn_pedidos_kds_v1";
 const ORDERS_EVENT = "cdn_pedidos_atualizados";
 const LAST_ORDER_KEY = "cdn_ultimo_pedido_id";
 
+/**
+ * Valida se um pedido está confirmado para produção na cozinha e faturamento no caixa.
+ * - Pedidos online via Pix: somente entram na fila da cozinha após confirmação ('pago').
+ * - Pedidos na entrega (dinheiro ou cartão): entram de imediato pois são pagos na entrega.
+ */
+export function isOrderConfirmed(order: Order | null | undefined): boolean {
+  if (!order || !order.pagamento) return false;
+  if (order.pagamento.metodo === "pix") {
+    return order.pagamento.status === "pago";
+  }
+  return true;
+}
+
+/**
+ * Retorna somente pedidos confirmados (exclui checkouts Pix pendentes da cozinha/produção).
+ */
+export function getConfirmedOrders(): Order[] {
+  return getOrders().filter(isOrderConfirmed);
+}
+
 export function getOrders(): Order[] {
   if (typeof window === "undefined") return [];
   try {
@@ -113,7 +133,14 @@ export function saveOrder(order: Order): void {
     const updated = [order, ...current.filter((o) => o.id !== order.id)];
     localStorage.setItem(ORDERS_KEY, JSON.stringify(updated));
     setLastOrderId(order.id);
-    registerOrderSale(order);
+
+    // Registra no caixa somente se o pedido estiver confirmado (pago no Pix ou pagamento na entrega)
+    if (isOrderConfirmed(order)) {
+      registerOrderSale(order);
+    } else {
+      removeOrderSaleIfPending(order.id);
+    }
+
     dispatchOrdersUpdate();
 
     // Sincroniza com a tabela 'orders' do Supabase em segundo plano
@@ -196,9 +223,10 @@ export function updateOrderPaymentStatus(
   if (typeof window === "undefined") return;
   try {
     const current = getOrders();
+    let orderToRegister: Order | null = null;
     const updated = current.map((o) => {
       if (o.id === orderId) {
-        return {
+        const nextOrder: Order = {
           ...o,
           pagamento: {
             ...o.pagamento,
@@ -206,10 +234,21 @@ export function updateOrderPaymentStatus(
             mercadoPagoId: mpPaymentId || o.pagamento.mercadoPagoId,
           },
         };
+        if (newPaymentStatus === "pago" && isOrderConfirmed(nextOrder)) {
+          orderToRegister = nextOrder;
+        }
+        return nextOrder;
       }
       return o;
     });
     localStorage.setItem(ORDERS_KEY, JSON.stringify(updated));
+
+    if (orderToRegister) {
+      registerOrderSale(orderToRegister);
+    } else if (newPaymentStatus !== "pago") {
+      removeOrderSaleIfPending(orderId);
+    }
+
     dispatchOrdersUpdate();
 
     if (isCloudConfigured()) {
@@ -335,6 +374,11 @@ export function initOrdersCloudSync(): void {
           } else {
             merged.push(co);
           }
+          if (isOrderConfirmed(co)) {
+            registerOrderSale(co);
+          } else {
+            removeOrderSaleIfPending(co.id);
+          }
         }
         localStorage.setItem(ORDERS_KEY, JSON.stringify(merged));
         dispatchOrdersUpdate();
@@ -377,6 +421,12 @@ export function initOrdersCloudSync(): void {
               nextOrders[existingIdx] = updatedOrder;
             } else {
               nextOrders = [updatedOrder, ...current];
+            }
+
+            if (isOrderConfirmed(updatedOrder)) {
+              registerOrderSale(updatedOrder);
+            } else {
+              removeOrderSaleIfPending(updatedOrder.id);
             }
 
             localStorage.setItem(ORDERS_KEY, JSON.stringify(nextOrders));

@@ -33,6 +33,7 @@ import {
   deleteOrder,
   generateOrderId,
   getOrders,
+  isOrderConfirmed,
   onOrdersUpdate,
   saveOrder,
   updateOrderStatus,
@@ -59,9 +60,16 @@ function PainelCozinha() {
     return cleanup;
   }, []);
 
-  const novos = pedidos.filter((p) => p.status === "novo");
-  const emPreparo = pedidos.filter((p) => p.status === "preparo");
-  const prontos = pedidos.filter((p) => p.status === "pronto");
+  // FILTRO OBRIGATÓRIO: Apenas pedidos confirmados entram na esteira de produção da cozinha
+  // Pedidos pagos via Pix aguardando QR Code/transferência NÃO são enviados para produção
+  const pedidosProducao = pedidos.filter(isOrderConfirmed);
+  const pixPendentes = pedidos.filter(
+    (p) => p.pagamento.metodo === "pix" && p.pagamento.status !== "pago"
+  );
+
+  const novos = pedidosProducao.filter((p) => p.status === "novo");
+  const emPreparo = pedidosProducao.filter((p) => p.status === "preparo");
+  const prontos = pedidosProducao.filter((p) => p.status === "pronto");
 
   const handleImprimir = (pedido: Order) => {
     setPedidoImprimir(pedido);
@@ -174,6 +182,15 @@ function PainelCozinha() {
                 <span className="text-[10px] uppercase tracking-wider font-extrabold text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/30">
                   Tempo Real
                 </span>
+                {pixPendentes.length > 0 && (
+                  <span
+                    title={`${pixPendentes.length} pedido(s) Pix aguardando pagamento do cliente. Só entrarão na produção após confirmação bancária.`}
+                    className="text-[10px] uppercase tracking-wider font-extrabold text-amber-400 bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-500/30 flex items-center gap-1"
+                  >
+                    <Clock className="h-2.5 w-2.5" />
+                    <span>{pixPendentes.length} Pix Aguardando</span>
+                  </span>
+                )}
               </div>
               <p className="text-xs text-white/60">
                 Cantinho do Norte — A essência da Amazônia na sua mesa • Central 100% Delivery (Maringá/PR)
@@ -198,10 +215,10 @@ function PainelCozinha() {
               <span>Simular Novo Pedido</span>
             </button>
 
-            {pedidos.length > 0 && (
+            {pedidosProducao.length > 0 && (
               <button
                 onClick={() => {
-                  if (confirm("Deseja limpar todos os pedidos da tela?")) {
+                  if (confirm("Deseja limpar todos os pedidos confirmados da tela?")) {
                     clearOrders();
                   }
                 }}
