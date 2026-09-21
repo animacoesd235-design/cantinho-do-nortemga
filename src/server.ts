@@ -2,6 +2,11 @@ import "./lib/error-capture";
 
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
+import {
+  handleCreatePixPayment,
+  handleCheckPaymentStatus,
+  handleMercadoPagoWebhook,
+} from "./server/mercadopago";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -46,6 +51,46 @@ function isH3SwallowedErrorBody(body: string): boolean {
 
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
+    const url = new URL(request.url);
+
+    // Tratamento de rotas de API do Mercado Pago
+    if (url.pathname.startsWith("/api/mercadopago")) {
+      // Suporte a CORS Preflight
+      if (request.method === "OPTIONS") {
+        return new Response(null, {
+          status: 204,
+          headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+            "Access-Control-Allow-Headers": "Content-Type, Authorization",
+          },
+        });
+      }
+
+      let response: Response;
+      if (url.pathname === "/api/mercadopago/create-pix" && request.method === "POST") {
+        response = await handleCreatePixPayment(request, env);
+      } else if (url.pathname === "/api/mercadopago/payment-status") {
+        response = await handleCheckPaymentStatus(request, env);
+      } else if (url.pathname === "/api/mercadopago/webhook") {
+        response = await handleMercadoPagoWebhook(request, env);
+      } else {
+        response = new Response(
+          JSON.stringify({ error: "Endpoint não encontrado" }),
+          { status: 404, headers: { "content-type": "application/json" } }
+        );
+      }
+
+      // Garante headers de CORS na resposta
+      const headers = new Headers(response.headers);
+      headers.set("Access-Control-Allow-Origin", "*");
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers,
+      });
+    }
+
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);

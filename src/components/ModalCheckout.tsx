@@ -1,12 +1,16 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
+  AlertCircle,
   Bike,
   Check,
   CheckCircle2,
   Copy,
   CreditCard,
   DollarSign,
+  ExternalLink,
+  Loader2,
   QrCode,
+  RefreshCw,
   ShieldCheck,
   Sparkles,
   X,
@@ -16,10 +20,16 @@ import { WHATSAPP, brl } from "@/lib/menu-data";
 import {
   generateOrderId,
   saveOrder,
+  updateOrderPaymentStatus,
   type DeliveryAddress,
   type Order,
   type OrderItem,
 } from "@/lib/orders";
+import {
+  createPixPayment,
+  checkPixPaymentStatus,
+  type CreatePixResponse,
+} from "@/lib/mercadopago-client";
 
 interface ModalCheckoutProps {
   cart: OrderItem[];
@@ -40,37 +50,49 @@ export function ModalCheckout({
   // Form states
   const [nome, setNome] = useState("");
   const [telefone, setTelefone] = useState("");
+  const [email, setEmail] = useState("");
   const [rua, setRua] = useState("");
   const [numero, setNumero] = useState("");
   const [bairro, setBairro] = useState("");
   const [referencia, setReferencia] = useState("");
 
-  // Payment states
+  // Payment method
   const [metodoPagamento, setMetodoPagamento] = useState<
     "pix" | "cartao_entrega" | "dinheiro_entrega"
   >("pix");
   const [trocoPara, setTrocoPara] = useState("");
 
-  // Pix interaction
+  // Pix Mercado Pago states
+  const [gerandoPix, setGerandoPix] = useState(false);
+  const [pixGerado, setPixGerado] = useState(false);
+  const [codigoPixCopiaCola, setCodigoPixCopiaCola] = useState("");
+  const [qrCodeBase64, setQrCodeBase64] = useState("");
+  const [ticketUrl, setTicketUrl] = useState("");
+  const [mpPaymentId, setMpPaymentId] = useState<number | string | null>(null);
+  const [currentOrderId, setCurrentOrderId] = useState<string>("");
   const [pixCopiado, setPixCopiado] = useState(false);
   const [pixAprovado, setPixAprovado] = useState(false);
-  const chavePixSimulada = "00020126580014br.gov.bcb.pix0136cantinho-norte-maringa-acai-artesanal5204000053039865405" + totalGeral.toFixed(2) + "5802BR5918CANTINHO DO NORTE6007MARINGA62070503***6304";
+  const [verificandoStatusManual, setVerificandoStatusManual] = useState(false);
+  const [erroPix, setErroPix] = useState<string | null>(null);
+
+  // Polling ref
+  const pollingRef = useRef<any>(null);
+
+  // Limpa o polling ao desmontar o componente
+  useEffect(() => {
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, []);
 
   const copiarPix = () => {
-    navigator.clipboard.writeText(chavePixSimulada);
+    if (!codigoPixCopiaCola) return;
+    navigator.clipboard.writeText(codigoPixCopiaCola);
     setPixCopiado(true);
-    toast.success("Chave Pix Copia e Cola copiada com sucesso!");
-    setTimeout(() => setPixCopiado(false), 3000);
-  };
-
-  const simularPagamentoAprovado = () => {
-    setPixAprovado(true);
-    toast.success("Pagamento via Pix confirmado!", {
-      description: "Seu pedido foi aprovado e enviado para a cozinha.",
-    });
-    setTimeout(() => {
-      finalizarPedido("pago");
-    }, 1200);
+    toast.success("Código Pix Copia e Cola copiado com sucesso!");
+    setTimeout(() => setPixCopiado(false), 3500);
   };
 
   const validarFormulario = () => {
@@ -101,9 +123,8 @@ export function ModalCheckout({
     return true;
   };
 
-  const finalizarPedido = (statusPagamento: "pago" | "pendente" = "pendente") => {
-    if (!validarFormulario()) return;
-
+  // Monta objeto de pedido padronizado
+  const construirObjetoPedido = (orderId: string, statusPag: "pago" | "pendente" = "pendente"): Order => {
     const endereco: DeliveryAddress = {
       rua: rua.trim(),
       numero: numero.trim(),
@@ -112,12 +133,13 @@ export function ModalCheckout({
       cidade: "Maringá/PR",
     };
 
-    const novoPedido: Order = {
-      id: generateOrderId(),
+    return {
+      id: orderId,
       createdAt: new Date().toISOString(),
       cliente: {
         nome: nome.trim(),
         telefone: telefone.trim(),
+        email: email.trim() || undefined,
       },
       endereco,
       itens: cart,
@@ -126,16 +148,131 @@ export function ModalCheckout({
       total: totalGeral,
       pagamento: {
         metodo: metodoPagamento,
-        status: statusPagamento,
+        status: statusPag,
         trocoPara: metodoPagamento === "dinheiro_entrega" ? trocoPara : undefined,
+        mercadoPagoId: mpPaymentId || undefined,
+        pixQrCode: codigoPixCopiaCola || undefined,
+        pixQrCodeBase64: qrCodeBase64 || undefined,
       },
       status: "novo",
     };
+  };
 
-    // Salva no KDS (localStorage com sync em tempo real)
-    saveOrder(novoPedido);
+  // Gerar cobrança Pix real com o Mercado Pago
+  const handleGerarPixMercadoPago = async () => {
+    if (!validarFormulario()) return;
 
-    // Formata mensagem do WhatsApp
+    try {
+      setGerandoPix(true);
+      setErroPix(null);
+
+      const orderId = currentOrderId || generateOrderId();
+      setCurrentOrderId(orderId);
+
+      const pedido = construirObjetoPedido(orderId, "pendente");
+
+      const res = await createPixPayment({
+        transaction_amount: totalGeral,
+        description: `Pedido ${orderId} - Cantinho do Norte (Delivery)`,
+        order_id: orderId,
+        email: email.trim(),
+        nome: nome.trim(),
+        telefone: telefone.trim(),
+        order: pedido,
+      });
+
+      if (res.success && res.qr_code) {
+        setCodigoPixCopiaCola(res.qr_code);
+        setQrCodeBase64(res.qr_code_base64 || "");
+        setTicketUrl(res.ticket_url || "");
+        setMpPaymentId(res.payment_id || null);
+        setPixGerado(true);
+
+        // Salva pedido inicialmente com status pendente
+        saveOrder(pedido);
+
+        toast.success("QR Code Pix gerado com sucesso pelo Mercado Pago!");
+
+        // Inicia polling automático a cada 3 segundos para confirmar aprovação
+        iniciarPollingStatus(res.payment_id!, orderId, pedido);
+      } else {
+        const msgErro = res.error || "Não foi possível gerar a cobrança Pix no Mercado Pago.";
+        setErroPix(msgErro);
+        toast.error(msgErro);
+      }
+    } catch (err: any) {
+      const msg = err?.message || "Erro de conexão ao gerar o Pix.";
+      setErroPix(msg);
+      toast.error(msg);
+    } finally {
+      setGerandoPix(false);
+    }
+  };
+
+  // Inicia o polling contínuo para verificar aprovação do pagamento
+  const iniciarPollingStatus = (paymentId: number | string, orderId: string, pedidoBase: Order) => {
+    if (pollingRef.current) clearInterval(pollingRef.current);
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await checkPixPaymentStatus(paymentId, orderId);
+        if (res.is_paid || res.status === "approved") {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+
+          setPixAprovado(true);
+          updateOrderPaymentStatus(orderId, "pago", paymentId);
+
+          toast.success("Pagamento via Pix confirmado!", {
+            description: "Seu pedido foi aprovado pelo Mercado Pago e enviado para a cozinha.",
+          });
+
+          // Conclui pedido após breve animação de confirmação
+          setTimeout(() => {
+            concluirFluxoPedido({
+              ...pedidoBase,
+              pagamento: {
+                ...pedidoBase.pagamento,
+                status: "pago",
+                mercadoPagoId: paymentId,
+              },
+            });
+          }, 1500);
+        }
+      } catch (err) {
+        console.warn("[Polling Status] Falha silenciosa ao verificar Pix:", err);
+      }
+    }, 3000);
+  };
+
+  // Verificação manual sob demanda pelo cliente
+  const handleVerificarStatusManual = async () => {
+    if (!mpPaymentId) return;
+    try {
+      setVerificandoStatusManual(true);
+      const res = await checkPixPaymentStatus(mpPaymentId, currentOrderId);
+      if (res.is_paid || res.status === "approved") {
+        if (pollingRef.current) clearInterval(pollingRef.current);
+        setPixAprovado(true);
+        updateOrderPaymentStatus(currentOrderId, "pago", mpPaymentId);
+        toast.success("Pagamento confirmado com sucesso!");
+
+        setTimeout(() => {
+          finalizarPedido("pago");
+        }, 1200);
+      } else {
+        toast.info("Pagamento ainda pendente no banco. Por favor, conclua a transferência.");
+      }
+    } catch {
+      toast.error("Erro ao checar status do pagamento.");
+    } finally {
+      setVerificandoStatusManual(false);
+    }
+  };
+
+  const concluirFluxoPedido = (pedidoFinalizado: Order) => {
+    saveOrder(pedidoFinalizado);
+
     const linhasItens = cart.map((i) => {
       const extras = i.extras?.length
         ? `\n     ↳ Complementos: ${i.extras.map((e) => e.nome).join(", ")}`
@@ -145,27 +282,28 @@ export function ModalCheckout({
 
     const textoPagamento =
       metodoPagamento === "pix"
-        ? statusPagamento === "pago"
-          ? "✅ Pix (Aprovado Instantaneamente)"
-          : "⏳ Pix (Comprovante em anexo)"
+        ? pedidoFinalizado.pagamento.status === "pago"
+          ? "✅ Pix Aprovado no Mercado Pago"
+          : "⏳ Pix (Aguardando conferência)"
         : metodoPagamento === "cartao_entrega"
         ? "💳 Cartão na Entrega (Levar maquininha)"
         : `💵 Dinheiro na Entrega ${trocoPara ? `(Troco p/ R$ ${trocoPara})` : ""}`;
 
-    const primeiroNome = novoPedido.cliente.nome.trim().split(" ")[0] || "Cliente";
+    const primeiroNome = pedidoFinalizado.cliente.nome.trim().split(" ")[0] || "Cliente";
 
     const msg = [
-      `*PEDIDO ${novoPedido.id} — CANTINHO DO NORTE*`,
+      `*PEDIDO ${pedidoFinalizado.id} — CANTINHO DO NORTE*`,
       `🛵 *Atendimento 100% Delivery (Maringá/PR)*`,
       "",
-      `*Cliente:* ${novoPedido.cliente.nome}`,
-      `*WhatsApp:* ${novoPedido.cliente.telefone}`,
+      `*Cliente:* ${pedidoFinalizado.cliente.nome}`,
+      `*WhatsApp:* ${pedidoFinalizado.cliente.telefone}`,
+      ...(pedidoFinalizado.cliente.email ? [`*E-mail:* ${pedidoFinalizado.cliente.email}`] : []),
       "",
       `📍 *ENDEREÇO DE ENTREGA:*`,
-      `${endereco.rua}, Nº ${endereco.numero}`,
-      `Bairro: ${endereco.bairro}`,
-      `Referência: ${endereco.referencia}`,
-      `Cidade: ${endereco.cidade}`,
+      `${pedidoFinalizado.endereco.rua}, Nº ${pedidoFinalizado.endereco.numero}`,
+      `Bairro: ${pedidoFinalizado.endereco.bairro}`,
+      `Referência: ${pedidoFinalizado.endereco.referencia}`,
+      `Cidade: ${pedidoFinalizado.endereco.cidade}`,
       "",
       `📦 *ITENS DO PEDIDO (Garrafas e potes lacrados):*`,
       ...linhasItens,
@@ -187,7 +325,14 @@ export function ModalCheckout({
       "_blank"
     );
 
-    onOrderCompleted(novoPedido);
+    onOrderCompleted(pedidoFinalizado);
+  };
+
+  const finalizarPedido = (statusPagamento: "pago" | "pendente" = "pendente") => {
+    if (!validarFormulario()) return;
+    const orderId = currentOrderId || generateOrderId();
+    const pedido = construirObjetoPedido(orderId, statusPagamento);
+    concluirFluxoPedido(pedido);
   };
 
   return (
@@ -246,6 +391,18 @@ export function ModalCheckout({
                   value={telefone}
                   onChange={(e) => setTelefone(e.target.value)}
                   className="w-full rounded-xl border border-border bg-background px-3.5 py-2.5 text-sm font-medium focus:border-forest focus:ring-1 focus:ring-forest outline-none transition-all"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                  E-mail para comprovante Pix (Opcional)
+                </label>
+                <input
+                  type="email"
+                  placeholder="seu-email@exemplo.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background px-3.5 py-2 text-sm font-medium focus:border-forest focus:ring-1 focus:ring-forest outline-none transition-all"
                 />
               </div>
             </div>
@@ -342,7 +499,7 @@ export function ModalCheckout({
                       Pix
                     </span>
                     <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                      Instantâneo
+                      Mercado Pago
                     </span>
                   </div>
                 </div>
@@ -422,100 +579,141 @@ export function ModalCheckout({
               </div>
             )}
 
-            {/* Interface Exclusiva Pix com QR Code Simulado e Teste */}
+            {/* Interface Real Pix Integrada com Mercado Pago */}
             {metodoPagamento === "pix" && (
               <div className="rounded-3xl border border-emerald-500/30 bg-emerald-950/5 dark:bg-emerald-950/20 p-4 sm:p-5 space-y-4 animate-in fade-in">
-                <div className="flex flex-col sm:flex-row items-center gap-4">
-                  {/* QR Code Simulado em SVG */}
-                  <div className="relative p-2.5 bg-white rounded-2xl shadow-md border border-border shrink-0">
-                    <svg
-                      width="120"
-                      height="120"
-                      viewBox="0 0 120 120"
-                      className="rounded-lg"
-                    >
-                      <rect width="120" height="120" fill="white" />
-                      {/* Cantos do QR Code */}
-                      <rect x="10" y="10" width="30" height="30" fill="#0f1712" rx="4" />
-                      <rect x="16" y="16" width="18" height="18" fill="white" rx="2" />
-                      <rect x="20" y="20" width="10" height="10" fill="#0f1712" />
-
-                      <rect x="80" y="10" width="30" height="30" fill="#0f1712" rx="4" />
-                      <rect x="86" y="16" width="18" height="18" fill="white" rx="2" />
-                      <rect x="90" y="20" width="10" height="10" fill="#0f1712" />
-
-                      <rect x="10" y="80" width="30" height="30" fill="#0f1712" rx="4" />
-                      <rect x="16" y="86" width="18" height="18" fill="white" rx="2" />
-                      <rect x="20" y="90" width="10" height="10" fill="#0f1712" />
-
-                      {/* Padrões internos do QR */}
-                      <rect x="48" y="15" width="8" height="8" fill="#0f1712" />
-                      <rect x="62" y="20" width="8" height="8" fill="#0f1712" />
-                      <rect x="48" y="32" width="6" height="6" fill="#0f1712" />
-                      <rect x="52" y="48" width="16" height="16" fill="#4a154b" rx="2" />
-                      <rect x="25" y="52" width="12" height="6" fill="#0f1712" />
-                      <rect x="85" y="52" width="10" height="12" fill="#0f1712" />
-                      <rect x="75" y="75" width="12" height="12" fill="#0f1712" />
-                      <rect x="55" y="85" width="10" height="8" fill="#0f1712" />
-                      <rect x="92" y="88" width="12" height="12" fill="#0f1712" />
-                    </svg>
-                    {pixAprovado && (
-                      <div className="absolute inset-0 bg-emerald-600/90 rounded-2xl flex flex-col items-center justify-center text-white backdrop-blur-[1px] animate-in zoom-in-95">
-                        <CheckCircle2 className="h-10 w-10 text-white animate-bounce" />
-                        <span className="text-[11px] font-extrabold mt-1">
-                          PAGO!
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Informações Pix e Copia e Cola */}
-                  <div className="flex-1 min-w-0 text-center sm:text-left space-y-2">
-                    <div>
-                      <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300">
-                        Chave Pix (Copia e Cola)
+                {/* Botão de Geração ou Carregamento */}
+                {!pixGerado ? (
+                  <div className="text-center py-2 space-y-3">
+                    <div className="max-w-xs mx-auto space-y-1">
+                      <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 block">
+                        Pagamento Instantâneo via Pix (Mercado Pago)
                       </span>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        Abra o app do seu banco, escolha Pix Copia e Cola e conclua.
+                      <p className="text-[11px] text-muted-foreground">
+                        Clique abaixo para gerar o QR Code oficial e o código Copia e Cola diretamente no Mercado Pago.
                       </p>
                     </div>
 
                     <button
                       type="button"
-                      onClick={copiarPix}
-                      className="tap w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-card border border-emerald-500/40 text-xs font-bold text-foreground shadow-xs hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors"
+                      onClick={handleGerarPixMercadoPago}
+                      disabled={gerandoPix}
+                      className="tap inline-flex items-center justify-center gap-2 px-6 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black shadow-md transition-all disabled:opacity-50"
                     >
-                      {pixCopiado ? (
+                      {gerandoPix ? (
                         <>
-                          <Check className="h-3.5 w-3.5 text-emerald-600" />
-                          <span>Chave Copiada!</span>
+                          <Loader2 className="h-4 w-4 animate-spin text-white" />
+                          <span>Gerando Pix com o Mercado Pago...</span>
                         </>
                       ) : (
                         <>
-                          <Copy className="h-3.5 w-3.5 text-emerald-600" />
-                          <span>Copiar Chave Pix</span>
+                          <QrCode className="h-4 w-4" />
+                          <span>Gerar QR Code Pix Oficial</span>
                         </>
                       )}
                     </button>
-                  </div>
-                </div>
 
-                {/* Botão de Teste - Simular Pagamento Aprovado */}
-                <div className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-2.5">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-emerald-600 shrink-0" />
-                    <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200">
-                      Ambiente de Demonstração / Teste
-                    </span>
+                    {erroPix && (
+                      <div className="flex items-start gap-2 rounded-xl bg-red-500/10 border border-red-500/20 p-3 text-red-400 text-left text-xs">
+                        <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                        <div className="space-y-1">
+                          <span className="font-bold block">Aviso de Configuração:</span>
+                          <span className="text-[11px] leading-relaxed block">{erroPix}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                  <button
-                    type="button"
-                    onClick={simularPagamentoAprovado}
-                    className="tap w-full sm:w-auto px-4 py-1.5 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold shadow-sm transition-all"
-                  >
-                    Simular Pagamento Aprovado ⚡
-                  </button>
-                </div>
+                ) : (
+                  <div className="space-y-4">
+                    {/* Visualização do QR Code e Copia e Cola */}
+                    <div className="flex flex-col sm:flex-row items-center gap-4">
+                      <div className="relative p-2.5 bg-white rounded-2xl shadow-md border border-border shrink-0">
+                        {qrCodeBase64 ? (
+                          <img
+                            src={`data:image/png;base64,${qrCodeBase64}`}
+                            alt="QR Code Pix Mercado Pago"
+                            className="h-32 w-32 object-contain rounded-lg"
+                          />
+                        ) : (
+                          <div className="h-32 w-32 grid place-items-center bg-gray-50 rounded-lg text-gray-400">
+                            <QrCode className="h-16 w-16" />
+                          </div>
+                        )}
+
+                        {pixAprovado && (
+                          <div className="absolute inset-0 bg-emerald-600/90 rounded-2xl flex flex-col items-center justify-center text-white backdrop-blur-[1px] animate-in zoom-in-95">
+                            <CheckCircle2 className="h-10 w-10 text-white animate-bounce" />
+                            <span className="text-[11px] font-extrabold mt-1">
+                              APROVADO!
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Informações Pix e Copia e Cola */}
+                      <div className="flex-1 min-w-0 text-center sm:text-left space-y-2">
+                        <div>
+                          <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 block">
+                            Pix Copia e Cola (Mercado Pago)
+                          </span>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Abra o aplicativo do seu banco, selecione a opção <strong>Pix Copia e Cola</strong> e conclua a transferência.
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={copiarPix}
+                          className="tap w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-card border border-emerald-500/40 text-xs font-bold text-foreground shadow-xs hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition-colors"
+                        >
+                          {pixCopiado ? (
+                            <>
+                              <Check className="h-3.5 w-3.5 text-emerald-600" />
+                              <span>Código Copiado com Sucesso!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3.5 w-3.5 text-emerald-600" />
+                              <span>Copiar Código Pix</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Indicador Visual Dinâmico de Aguardando Pagamento */}
+                    {!pixAprovado ? (
+                      <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2.5">
+                          <Loader2 className="h-4 w-4 animate-spin text-amber-500 shrink-0" />
+                          <div className="text-left">
+                            <span className="font-bold text-amber-900 dark:text-amber-200 block">
+                              Aguardando confirmação do pagamento...
+                            </span>
+                            <span className="text-[11px] text-muted-foreground block">
+                              O sistema identifica a transferência automaticamente em segundos.
+                            </span>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleVerificarStatusManual}
+                          disabled={verificandoStatusManual}
+                          className="tap shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-[11px] font-bold text-amber-800 dark:text-amber-200 transition-colors"
+                        >
+                          <RefreshCw className={`h-3 w-3 ${verificandoStatusManual ? "animate-spin" : ""}`} />
+                          <span>Já Paguei</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center gap-2 text-emerald-300 text-xs font-bold animate-in zoom-in-95">
+                        <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                        <span>Pagamento confirmado com sucesso pelo Mercado Pago! Redirecionando...</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -549,15 +747,35 @@ export function ModalCheckout({
           </button>
 
           <button
-            onClick={() => finalizarPedido(metodoPagamento === "pix" ? (pixAprovado ? "pago" : "pendente") : "pendente")}
-            className="tap flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-acai text-acai-foreground text-sm font-extrabold shadow-lg hover:opacity-95 active:scale-95 transition-all"
+            onClick={() => {
+              if (metodoPagamento === "pix" && !pixGerado) {
+                handleGerarPixMercadoPago();
+              } else {
+                finalizarPedido(metodoPagamento === "pix" ? (pixAprovado ? "pago" : "pendente") : "pendente");
+              }
+            }}
+            disabled={gerandoPix}
+            className="tap flex-1 inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full bg-gradient-acai text-acai-foreground text-sm font-extrabold shadow-lg hover:opacity-95 active:scale-95 transition-all disabled:opacity-60"
           >
-            <ShieldCheck className="h-4 w-4" />
-            <span>
-              {metodoPagamento === "pix" && pixAprovado
-                ? "Enviar Pedido Aprovado"
-                : "Finalizar Pedido via WhatsApp"}
-            </span>
+            {gerandoPix ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin text-white" />
+                <span>Gerando Pix...</span>
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="h-4 w-4" />
+                <span>
+                  {metodoPagamento === "pix"
+                    ? pixAprovado
+                      ? "Concluir Pedido Aprovado ✅"
+                      : !pixGerado
+                      ? "Pagar via Pix (Mercado Pago)"
+                      : "Finalizar Pedido via WhatsApp"
+                    : "Finalizar Pedido via WhatsApp"}
+                </span>
+              </>
+            )}
           </button>
         </div>
       </div>

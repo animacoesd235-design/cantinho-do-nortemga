@@ -1,4 +1,5 @@
 import { registerOrderSale } from "./cash-store";
+import { getSupabaseClient, isCloudConfigured } from "./cloud-sync";
 
 export type ExtraItem = {
   id: string;
@@ -71,6 +72,7 @@ export type Order = {
   cliente: {
     nome: string;
     telefone: string;
+    email?: string;
   };
   endereco: DeliveryAddress;
   itens: OrderItem[];
@@ -81,6 +83,9 @@ export type Order = {
     metodo: "pix" | "cartao_entrega" | "dinheiro_entrega";
     status: "pago" | "pendente";
     trocoPara?: string;
+    mercadoPagoId?: string | number;
+    pixQrCode?: string;
+    pixQrCodeBase64?: string;
   };
   status: "novo" | "preparo" | "pronto";
 };
@@ -110,6 +115,34 @@ export function saveOrder(order: Order): void {
     setLastOrderId(order.id);
     registerOrderSale(order);
     dispatchOrdersUpdate();
+
+    // Sincroniza com a tabela 'orders' do Supabase em segundo plano
+    if (isCloudConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase
+          .from("orders")
+          .upsert({
+            id: order.id,
+            created_at: order.createdAt,
+            dispatched_at: order.dispatchedAt || null,
+            cliente: order.cliente || {},
+            endereco: order.endereco || {},
+            itens: order.itens || [],
+            subtotal: order.subtotal,
+            taxa_entrega: order.taxaEntrega,
+            total: order.total,
+            pagamento: order.pagamento || {},
+            status: order.status,
+            payment_status: order.pagamento?.status || "pendente",
+            mp_payment_id: order.pagamento?.mercadoPagoId ? String(order.pagamento.mercadoPagoId) : null,
+            updated_at: new Date().toISOString(),
+          })
+          .then(({ error }) => {
+            if (error) console.warn("[Orders Cloud] Falha ao enviar pedido para o Supabase:", error.message);
+          });
+      }
+    }
   } catch (e) {
     console.error("Erro ao salvar pedido no KDS:", e);
   }
@@ -119,20 +152,88 @@ export function updateOrderStatus(orderId: string, newStatus: Order["status"]): 
   if (typeof window === "undefined") return;
   try {
     const current = getOrders();
+    let dispatchedDate: string | undefined = undefined;
     const updated = current.map((o) => {
       if (o.id === orderId) {
+        dispatchedDate = newStatus === "pronto" && !o.dispatchedAt ? new Date().toISOString() : o.dispatchedAt;
         return {
           ...o,
           status: newStatus,
-          dispatchedAt: newStatus === "pronto" && !o.dispatchedAt ? new Date().toISOString() : o.dispatchedAt,
+          dispatchedAt: dispatchedDate,
         };
       }
       return o;
     });
     localStorage.setItem(ORDERS_KEY, JSON.stringify(updated));
     dispatchOrdersUpdate();
+
+    if (isCloudConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase
+          .from("orders")
+          .update({
+            status: newStatus,
+            dispatched_at: dispatchedDate || null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", orderId)
+          .then(({ error }) => {
+            if (error) console.warn("[Orders Cloud] Falha ao atualizar status no Supabase:", error.message);
+          });
+      }
+    }
   } catch (e) {
     console.error("Erro ao atualizar status do pedido:", e);
+  }
+}
+
+export function updateOrderPaymentStatus(
+  orderId: string,
+  newPaymentStatus: "pago" | "pendente",
+  mpPaymentId?: string | number
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    const current = getOrders();
+    const updated = current.map((o) => {
+      if (o.id === orderId) {
+        return {
+          ...o,
+          pagamento: {
+            ...o.pagamento,
+            status: newPaymentStatus,
+            mercadoPagoId: mpPaymentId || o.pagamento.mercadoPagoId,
+          },
+        };
+      }
+      return o;
+    });
+    localStorage.setItem(ORDERS_KEY, JSON.stringify(updated));
+    dispatchOrdersUpdate();
+
+    if (isCloudConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase
+          .from("orders")
+          .update({
+            payment_status: newPaymentStatus,
+            mp_payment_id: mpPaymentId ? String(mpPaymentId) : undefined,
+            pagamento: {
+              status: newPaymentStatus,
+              mercadoPagoId: mpPaymentId,
+            },
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", orderId)
+          .then(({ error }) => {
+            if (error) console.warn("[Orders Cloud] Falha ao atualizar pagamento no Supabase:", error.message);
+          });
+      }
+    }
+  } catch (e) {
+    console.error("Erro ao atualizar pagamento do pedido:", e);
   }
 }
 
@@ -143,6 +244,13 @@ export function deleteOrder(orderId: string): void {
     const updated = current.filter((o) => o.id !== orderId);
     localStorage.setItem(ORDERS_KEY, JSON.stringify(updated));
     dispatchOrdersUpdate();
+
+    if (isCloudConfigured()) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
+        supabase.from("orders").delete().eq("id", orderId).then(() => {});
+      }
+    }
   } catch (e) {
     console.error("Erro ao remover pedido:", e);
   }
@@ -180,8 +288,112 @@ function dispatchOrdersUpdate() {
   );
 }
 
+let realtimeOrdersSubscribed = false;
+
+/**
+ * Inicializa subscrição e sincronização em tempo real da tabela 'orders' no Supabase.
+ */
+export function initOrdersCloudSync(): void {
+  if (typeof window === "undefined" || !isCloudConfigured() || realtimeOrdersSubscribed) return;
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
+
+  realtimeOrdersSubscribed = true;
+
+  // Busca pedidos recentes da nuvem
+  supabase
+    .from("orders")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(50)
+    .then(({ data, error }) => {
+      if (!error && Array.isArray(data) && data.length > 0) {
+        const cloudOrders: Order[] = data.map((row: any) => ({
+          id: row.id,
+          createdAt: row.created_at,
+          dispatchedAt: row.dispatched_at || undefined,
+          cliente: row.cliente || {},
+          endereco: row.endereco || {},
+          itens: row.itens || [],
+          subtotal: Number(row.subtotal) || 0,
+          taxaEntrega: Number(row.taxa_entrega) || 0,
+          total: Number(row.total) || 0,
+          pagamento: {
+            ...(row.pagamento || {}),
+            status: row.payment_status || row.pagamento?.status || "pendente",
+            mercadoPagoId: row.mp_payment_id || row.pagamento?.mercadoPagoId,
+          },
+          status: row.status || "novo",
+        }));
+
+        const local = getOrders();
+        const merged = [...local];
+        for (const co of cloudOrders) {
+          const idx = merged.findIndex((m) => m.id === co.id);
+          if (idx >= 0) {
+            merged[idx] = { ...merged[idx], ...co };
+          } else {
+            merged.push(co);
+          }
+        }
+        localStorage.setItem(ORDERS_KEY, JSON.stringify(merged));
+        dispatchOrdersUpdate();
+      }
+    });
+
+  // Escuta novos pedidos e atualizações de pagamento via WebSocket Realtime
+  try {
+    supabase
+      .channel(`public:orders-realtime-${Date.now()}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        (payload: any) => {
+          const newRow = payload.new;
+          if (newRow && newRow.id) {
+            const current = getOrders();
+            const existingIdx = current.findIndex((o) => o.id === newRow.id);
+            const updatedOrder: Order = {
+              id: newRow.id,
+              createdAt: newRow.created_at,
+              dispatchedAt: newRow.dispatched_at || undefined,
+              cliente: newRow.cliente || {},
+              endereco: newRow.endereco || {},
+              itens: newRow.itens || [],
+              subtotal: Number(newRow.subtotal) || 0,
+              taxaEntrega: Number(newRow.taxa_entrega) || 0,
+              total: Number(newRow.total) || 0,
+              pagamento: {
+                ...(newRow.pagamento || {}),
+                status: newRow.payment_status || newRow.pagamento?.status || "pendente",
+                mercadoPagoId: newRow.mp_payment_id || newRow.pagamento?.mercadoPagoId,
+              },
+              status: newRow.status || "novo",
+            };
+
+            let nextOrders: Order[];
+            if (existingIdx >= 0) {
+              nextOrders = [...current];
+              nextOrders[existingIdx] = updatedOrder;
+            } else {
+              nextOrders = [updatedOrder, ...current];
+            }
+
+            localStorage.setItem(ORDERS_KEY, JSON.stringify(nextOrders));
+            dispatchOrdersUpdate();
+          }
+        }
+      )
+      .subscribe();
+  } catch (err) {
+    console.warn("[Orders Cloud] Erro ao subscrever a pedidos realtime:", err);
+  }
+}
+
 export function onOrdersUpdate(callback: () => void): () => void {
   if (typeof window === "undefined") return () => {};
+
+  initOrdersCloudSync();
 
   const handleCustom = () => callback();
   const handleStorage = (e: StorageEvent) => {
@@ -215,7 +427,7 @@ export function buildWhatsAppStatusUrl(
   const metodoFormatado =
     order.pagamento.metodo === "pix"
       ? order.pagamento.status === "pago"
-        ? "Pix Aprovado"
+        ? "Pix Aprovado no Mercado Pago"
         : "Pix"
       : order.pagamento.metodo === "cartao_entrega"
       ? "Cartão na Entrega"
@@ -233,4 +445,9 @@ export function buildWhatsAppStatusUrl(
   }
 
   return `https://wa.me/${numDestino}?text=${encodeURIComponent(msg)}`;
+}
+
+// Inicializa sincronização de pedidos ao carregar no browser
+if (typeof window !== "undefined") {
+  initOrdersCloudSync();
 }
