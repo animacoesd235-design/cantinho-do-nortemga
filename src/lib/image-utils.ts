@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Utilitário de compressão e conversão de fotos para upload no cardápio.
  * Redimensiona a imagem via HTML5 Canvas para dimensões otimizadas (max 800x800),
  * gerando Base64 (WebP ou JPEG) leve (~30KB-80KB) que evita estourar o limite de 5MB do localStorage.
@@ -58,3 +58,33 @@ export function compressImageFile(
     reader.readAsDataURL(file);
   });
 }
+
+/**
+ * Detecta se uma URL ou string Base64 representa um arquivo de vídeo.
+ */
+export function isVideoMedia(url?: string | null): boolean {
+  if (!url || typeof url !== "string") return false;
+  const clean = url.trim().toLowerCase();
+  return (
+    clean.startsWith("data:video") ||
+    clean.endsWith(".mp4") ||
+    clean.endsWith(".webm") ||
+    clean.endsWith(".ogg") ||
+    clean.endsWith(".mov") ||
+    clean.includes(".mp4?") ||
+    clean.includes(".webm?")
+  );
+}
+
+/**
+ * Lê qualquer arquivo (imagem ou vídeo) diretamente como Base64 Data URL.
+ */
+export function readFileAsBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new Error("Erro ao ler o arquivo selecionado."));
+    reader.readAsDataURL(file);
+  });
+}
+

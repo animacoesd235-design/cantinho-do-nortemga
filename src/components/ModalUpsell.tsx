@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, Plus, Sparkles, X } from "lucide-react";
 import { brl, combos as defaultCombos, avulsos as defaultAvulsos, type Produto } from "@/lib/menu-data";
 import { UPSELL_EXTRAS, type ExtraItem } from "@/lib/orders";
+import { isVideoMedia } from "@/lib/image-utils";
 
 interface ModalUpsellProps {
   produto: Produto;
@@ -82,7 +83,16 @@ export function ModalUpsell({
               ) {
                 srcFinal = defaultItem.imagem || defaultItem.image || srcFinal;
               }
-              return (
+              return isVideoMedia(srcFinal) ? (
+                <video
+                  src={srcFinal}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  className="h-14 w-14 rounded-2xl object-contain p-1 bg-sand-deep/40 border border-border/80 shrink-0"
+                />
+              ) : (
                 <img
                   src={srcFinal}
                   alt={produto.nome}

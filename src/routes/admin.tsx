@@ -46,7 +46,7 @@ import { toast } from "sonner";
 import logo from "@/assets/logo-cantinho.png";
 import { ModalConfigNuvem } from "@/components/ModalConfigNuvem";
 import { ThermalReceipt } from "@/components/ThermalReceipt";
-import { compressImageFile } from "@/lib/image-utils";
+import { compressImageFile, isVideoMedia, readFileAsBase64 } from "@/lib/image-utils";
 import { checkPixPaymentStatus } from "@/lib/mercadopago-client";
 import {
   buildWhatsAppStatusUrl,
@@ -1285,26 +1285,49 @@ function TabProdutos() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
-      toast.error("Selecione um arquivo de imagem válido (JPG, PNG ou WEBP).");
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+
+    if (!isImage && !isVideo) {
+      toast.error("Selecione um arquivo de imagem (JPG, PNG, WEBP) ou vídeo (MP4, WEBM) válido.");
       return;
     }
 
     try {
       setCarregandoImagem(true);
-      toast.loading("Processando e otimizando imagem...", { id: "upload-img" });
-      const base64 = await compressImageFile(file, 800, 800, 0.85);
-      if (produtoEditando) {
-        setProdutoEditando({
-          ...produtoEditando,
-          imagem: base64,
-          image: base64,
-        });
+
+      if (isVideo) {
+        if (file.size > 25 * 1024 * 1024) {
+          toast.error("Arquivo de vídeo muito grande", {
+            description: "Escolha um vídeo de até 25 MB para bom desempenho no navegador.",
+          });
+          return;
+        }
+        toast.loading("Processando e convertendo vídeo...", { id: "upload-img" });
+        const base64 = await readFileAsBase64(file);
+        if (produtoEditando) {
+          setProdutoEditando({
+            ...produtoEditando,
+            imagem: base64,
+            image: base64,
+          });
+        }
+        toast.success("Vídeo carregado com sucesso!", { id: "upload-img" });
+      } else {
+        toast.loading("Processando e otimizando imagem...", { id: "upload-img" });
+        const base64 = await compressImageFile(file, 800, 800, 0.85);
+        if (produtoEditando) {
+          setProdutoEditando({
+            ...produtoEditando,
+            imagem: base64,
+            image: base64,
+          });
+        }
+        toast.success("Foto carregada com sucesso!", { id: "upload-img" });
       }
-      toast.success("Foto carregada com sucesso!", { id: "upload-img" });
     } catch (err: any) {
-      console.error("Erro no upload da imagem:", err);
-      toast.error(err?.message || "Erro ao processar a imagem", { id: "upload-img" });
+      console.error("Erro no upload do arquivo:", err);
+      toast.error(err?.message || "Erro ao processar o arquivo", { id: "upload-img" });
     } finally {
       setCarregandoImagem(false);
       if (e.target) e.target.value = "";
@@ -1742,30 +1765,46 @@ function TabProdutos() {
                   </div>
                 </div>
 
-                {/* Pré-visualização da Foto Selecionada */}
+                {/* Pré-visualização da Mídia Selecionada */}
                 <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white/5 border border-white/10">
                   {produtoEditando.imagem ? (
-                    <img
-                      src={produtoEditando.imagem}
-                      alt="Pré-visualização"
-                      className="h-20 w-20 rounded-xl object-contain p-1 border border-amber-400/40 bg-black/40 shrink-0"
-                    />
+                    isVideoMedia(produtoEditando.imagem) ? (
+                      <video
+                        src={produtoEditando.imagem}
+                        autoPlay
+                        loop
+                        muted
+                        playsInline
+                        className="h-20 w-20 rounded-xl object-contain p-1 border border-amber-400/40 bg-black/40 shrink-0"
+                      />
+                    ) : (
+                      <img
+                        src={produtoEditando.imagem}
+                        alt="Pré-visualização"
+                        className="h-20 w-20 rounded-xl object-contain p-1 border border-amber-400/40 bg-black/40 shrink-0"
+                      />
+                    )
                   ) : (
                     <div className="h-20 w-20 rounded-xl bg-black/40 border border-white/10 grid place-items-center text-white/40 text-[10px] shrink-0">
-                      Sem foto
+                      Sem mídia
                     </div>
                   )}
                   <div className="space-y-1 min-w-0 flex-1">
                     <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-bold text-emerald-300">
-                      <CheckCircle2 className="h-2.5 w-2.5" /> Imagem Definida
+                      <CheckCircle2 className="h-2.5 w-2.5" />{" "}
+                      {isVideoMedia(produtoEditando.imagem) ? "Vídeo Definido" : "Imagem Definida"}
                     </span>
                     <p className="text-[11px] text-white/70 truncate">
-                      {produtoEditando.imagem?.startsWith("data:image")
+                      {produtoEditando.imagem?.startsWith("data:video")
+                        ? "Arquivo de vídeo convertido (Base64)"
+                        : produtoEditando.imagem?.startsWith("data:image")
                         ? "Arquivo próprio convertido (Base64)"
-                        : produtoEditando.imagem || "Nenhuma imagem selecionada"}
+                        : produtoEditando.imagem || "Nenhuma mídia selecionada"}
                     </p>
                     <p className="text-[10px] text-white/40">
-                      Enquadramento automático proporcional no cardápio e no painel.
+                      {isVideoMedia(produtoEditando.imagem)
+                        ? "Player de vídeo ativo no cardápio e no painel."
+                        : "Enquadramento automático proporcional no cardápio e no painel."}
                     </p>
                   </div>
                 </div>
@@ -1776,7 +1815,7 @@ function TabProdutos() {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/*"
                       className="hidden"
                       onChange={handleFileChange}
                     />
@@ -1794,11 +1833,11 @@ function TabProdutos() {
                       <div>
                         <span className="text-xs font-bold text-white block">
                           {carregandoImagem
-                            ? "Otimizando e convertendo imagem..."
-                            : "Clique para escolher foto do computador ou celular"}
+                            ? "Otimizando e convertendo mídia..."
+                            : "Clique para escolher foto ou vídeo do computador ou celular"}
                         </span>
                         <span className="text-[10px] text-white/50 block mt-0.5">
-                          Suporta JPG, PNG, WEBP ou câmera (Conversão inteligente em Base64)
+                          Suporta JPG, PNG, WEBP, MP4, WEBM ou câmera (Conversão inteligente)
                         </span>
                       </div>
                     </div>
@@ -1923,17 +1962,28 @@ function CardProdutoAdmin({
   return (
     <div className="flex gap-3 rounded-2xl border border-white/10 bg-[#121c15] p-3.5 transition-all hover:border-white/20">
       {imagem ? (
-        <img
-          src={imagem}
-          alt={nome}
-          className="h-20 w-20 rounded-xl object-contain p-1 border border-white/10 shrink-0 bg-[#0e1710]"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).style.opacity = "0.3";
-          }}
-        />
+        isVideoMedia(imagem) ? (
+          <video
+            src={imagem}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="h-20 w-20 rounded-xl object-contain p-1 border border-white/10 shrink-0 bg-[#0e1710]"
+          />
+        ) : (
+          <img
+            src={imagem}
+            alt={nome}
+            className="h-20 w-20 rounded-xl object-contain p-1 border border-white/10 shrink-0 bg-[#0e1710]"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.opacity = "0.3";
+            }}
+          />
+        )
       ) : (
         <div className="h-20 w-20 rounded-xl bg-white/5 border border-white/10 shrink-0 grid place-items-center text-white/30 text-[10px]">
-          Sem foto
+          Sem mídia
         </div>
       )}
       <div className="flex-1 flex flex-col justify-between min-w-0">

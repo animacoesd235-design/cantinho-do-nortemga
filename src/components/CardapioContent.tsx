@@ -27,6 +27,7 @@ import {
   avulsos as defaultAvulsos,
   type Produto,
 } from "@/lib/menu-data";
+import { isVideoMedia } from "@/lib/image-utils";
 import {
   getCategories,
   getCustomProducts,
@@ -534,7 +535,7 @@ export function ProductCard({
         <div className="relative">
           {/* Mídia do Produto */}
           <div className="relative aspect-[4/3] w-full overflow-hidden rounded-t-3xl bg-sand-deep/40 flex items-center justify-center">
-            {imagemSrc?.startsWith("data:video") || imagemSrc?.endsWith(".mp4") || imagemSrc?.endsWith(".webm") ? (
+            {isVideoMedia(imagemSrc) ? (
               <video
                 src={imagemSrc}
                 autoPlay
