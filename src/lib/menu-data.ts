@@ -201,7 +201,11 @@ export const avulsos: Produto[] = [
 
 export const WHATSAPP = "5544991723310";
 
+export const VALOR_FRETE_GRATIS = 100;
+export const TAXA_ENTREGA_PADRAO = 7;
+
 export const brl = (v?: number | null) => {
   const num = typeof v === "number" && !isNaN(v) ? v : 0;
   return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 };
+

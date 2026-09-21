@@ -16,13 +16,14 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
-import { WHATSAPP, brl } from "@/lib/menu-data";
+import { WHATSAPP, VALOR_FRETE_GRATIS, TAXA_ENTREGA_PADRAO, brl } from "@/lib/menu-data";
 import {
   generateOrderId,
   getOrderById,
   onOrdersUpdate,
   saveOrder,
   updateOrderPaymentStatus,
+  dispatchRealOrderConfirmed,
   type DeliveryAddress,
   type Order,
   type OrderItem,
@@ -46,7 +47,7 @@ export function ModalCheckout({
   onClose,
   onOrderCompleted,
 }: ModalCheckoutProps) {
-  const taxaEntrega = total >= 100 ? 0 : 7;
+  const taxaEntrega = total >= VALOR_FRETE_GRATIS ? 0 : TAXA_ENTREGA_PADRAO;
   const totalGeral = total + taxaEntrega;
 
   // Form states
@@ -246,6 +247,14 @@ export function ModalCheckout({
 
           setPixAprovado(true);
           updateOrderPaymentStatus(orderId, "pago", paymentId);
+          dispatchRealOrderConfirmed({
+            ...pedidoBase,
+            pagamento: {
+              ...pedidoBase.pagamento,
+              status: "pago",
+              mercadoPagoId: paymentId,
+            },
+          });
 
           toast.success("Pagamento via Pix confirmado!", {
             description: "Seu pedido foi aprovado pelo Mercado Pago e enviado para a cozinha.",
@@ -296,6 +305,7 @@ export function ModalCheckout({
 
   const concluirFluxoPedido = (pedidoFinalizado: Order) => {
     saveOrder(pedidoFinalizado);
+    dispatchRealOrderConfirmed(pedidoFinalizado);
 
     const linhasItens = cart.map((i) => {
       const extras = i.extras?.length
@@ -756,7 +766,7 @@ export function ModalCheckout({
             <div className="flex justify-between text-muted-foreground text-xs">
               <span>Taxa de Entrega (Maringá)</span>
               <span className={taxaEntrega === 0 ? "text-emerald-600 font-bold" : ""}>
-                {taxaEntrega === 0 ? "GRÁTIS (Pedido acima de R$ 100)" : brl(taxaEntrega)}
+                {taxaEntrega === 0 ? `GRÁTIS (Pedido acima de ${brl(VALOR_FRETE_GRATIS)})` : brl(taxaEntrega)}
               </span>
             </div>
             <div className="flex justify-between text-base font-black text-forest pt-1.5 border-t border-border/50">

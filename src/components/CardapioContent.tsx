@@ -22,6 +22,7 @@ import logo from "@/assets/logo-cantinho.png";
 import heroBg from "@/assets/hero-bg.jpg";
 import {
   WHATSAPP,
+  VALOR_FRETE_GRATIS,
   brl,
   combos as defaultCombos,
   avulsos as defaultAvulsos,
@@ -761,7 +762,7 @@ function CarrinhoFlutuante({
 }) {
   if (!cart.length) return null;
 
-  const META_VANTAGEM = 75;
+  const META_VANTAGEM = VALOR_FRETE_GRATIS;
   const falta = Math.max(0, META_VANTAGEM - total);
   const progressoPct = Math.min(100, Math.round((total / META_VANTAGEM) * 100));
   const alcancouMeta = total >= META_VANTAGEM;

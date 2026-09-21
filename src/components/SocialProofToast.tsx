@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { CheckCircle, ShoppingBag, X } from "lucide-react";
+import {
+  getConfirmedOrders,
+  onRealPurchase,
+  type DeliveryAddress,
+  type Order,
+  type OrderItem,
+} from "@/lib/orders";
 
-interface SocialNotification {
-  id: number;
+export interface SocialNotification {
+  id: string | number;
   nome: string;
   local: string;
   item: string;
   tempo: string;
+  isReal?: boolean;
 }
 
 const NOTIFICACOES: SocialNotification[] = [
@@ -138,79 +146,179 @@ const NOTIFICACOES: SocialNotification[] = [
   },
 ];
 
-/**
- * Seleciona a próxima notificação garantindo que nomes recentes não se repitam.
- */
-function sortearProximoIndex(ultimoIndex: number, historicoRecente: number[]): number {
-  // Filtra itens já exibidos recentemente e evita o mesmo da última rodada
-  const candidatos = NOTIFICACOES.map((_, i) => i).filter(
-    (i) => i !== ultimoIndex && !historicoRecente.includes(i)
-  );
+export function extrairNomeCliente(nomeCompleto?: string): string {
+  const partes = (nomeCompleto || "").trim().split(/\s+/).filter(Boolean);
+  if (partes.length === 0) return "Cliente";
+  if (partes.length === 1) return partes[0];
+  return `${partes[0]} ${partes[1].charAt(0).toUpperCase()}.`;
+}
 
-  const pool =
-    candidatos.length > 0
-      ? candidatos
-      : NOTIFICACOES.map((_, i) => i).filter((i) => i !== ultimoIndex);
+export function extrairLocal(endereco?: DeliveryAddress): string {
+  if (!endereco) return "Maringá";
+  const bairro = (endereco.bairro || "").trim();
+  if (bairro) return bairro;
+  const cidade = (endereco.cidade || "").trim();
+  if (cidade) return cidade;
+  return "Maringá";
+}
 
-  const sorteado = pool[Math.floor(Math.random() * pool.length)];
-  return sorteado;
+export function formatarItensPedido(itens?: OrderItem[]): string {
+  if (!itens || itens.length === 0) return "1x Kit de Açaí";
+  const primeiro = itens[0];
+  const primeiroStr = `${primeiro.qtd}x ${primeiro.nome}`;
+  if (itens.length === 1) return primeiroStr;
+  const outros = itens.length - 1;
+  return `${primeiroStr} + ${outros} ${outros === 1 ? "item" : "itens"}`;
+}
+
+export function formatarOrigem(local: string): string {
+  const l = (local || "Maringá").trim();
+  const lower = l.toLowerCase();
+  if (
+    lower.startsWith("jardim") ||
+    lower.startsWith("parque") ||
+    lower.startsWith("novo") ||
+    lower.startsWith("centro")
+  ) {
+    return `do ${l}`;
+  }
+  if (
+    lower.startsWith("vila") ||
+    lower.startsWith("zona") ||
+    lower.startsWith("cidade") ||
+    lower.startsWith("gleba")
+  ) {
+    return `da ${l}`;
+  }
+  return `de ${l}`;
+}
+
+function tempoRelativo(dataIso?: string): string {
+  if (!dataIso) return "agora mesmo";
+  const agora = Date.now();
+  const criado = new Date(dataIso).getTime();
+  if (isNaN(criado)) return "agora mesmo";
+  const diffMin = Math.max(0, Math.floor((agora - criado) / (1000 * 60)));
+  if (diffMin === 0) return "agora mesmo";
+  if (diffMin < 60) return `há ${diffMin} ${diffMin === 1 ? "minuto" : "minutos"}`;
+  const diffHoras = Math.floor(diffMin / 60);
+  if (diffHoras < 24) return `há ${diffHoras} ${diffHoras === 1 ? "hora" : "horas"}`;
+  return "recente";
+}
+
+export function orderParaNotificacao(
+  order: Order,
+  tempoTexto = "agora mesmo"
+): SocialNotification {
+  return {
+    id: `real-${order.id}-${Date.now()}`,
+    nome: extrairNomeCliente(order.cliente?.nome),
+    local: extrairLocal(order.endereco),
+    item: formatarItensPedido(order.itens),
+    tempo: tempoTexto,
+    isReal: true,
+  };
+}
+
+function carregarNotificacoesIniciais(): SocialNotification[] {
+  try {
+    const pedidosReais = getConfirmedOrders();
+    const reaisFormatados: SocialNotification[] = pedidosReais.slice(0, 10).map((o) => ({
+      id: `real-${o.id}`,
+      nome: extrairNomeCliente(o.cliente?.nome),
+      local: extrairLocal(o.endereco),
+      item: formatarItensPedido(o.itens),
+      tempo: tempoRelativo(o.createdAt),
+      isReal: true,
+    }));
+    return [...reaisFormatados, ...NOTIFICACOES];
+  } catch {
+    return NOTIFICACOES;
+  }
 }
 
 export function SocialProofToast() {
-  const [index, setIndex] = useState(() => Math.floor(Math.random() * NOTIFICACOES.length));
+  const [notificacoes, setNotificacoes] = useState<SocialNotification[]>(carregarNotificacoesIniciais);
+  const [atual, setAtual] = useState<SocialNotification>(() => {
+    const pool = notificacoes.length > 0 ? notificacoes : NOTIFICACOES;
+    return pool[Math.floor(Math.random() * pool.length)];
+  });
   const [visivel, setVisivel] = useState(false);
   const [dispensado, setDispensado] = useState(false);
-  const historicoRef = useRef<number[]>([]);
+  const historicoRef = useRef<Array<string | number>>([]);
+  const timerRef = useRef<any>(null);
+  const notificacoesRef = useRef<SocialNotification[]>(notificacoes);
 
+  useEffect(() => {
+    notificacoesRef.current = notificacoes;
+  }, [notificacoes]);
+
+  // Função para agendar próximo ciclo suave (12.5s a 13s)
+  const agendarCiclo = (atrasoEspera: number) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+
+    timerRef.current = setTimeout(() => {
+      const pool =
+        notificacoesRef.current.length > 0 ? notificacoesRef.current : NOTIFICACOES;
+      const candidatos = pool.filter((n) => !historicoRef.current.includes(n.id));
+      const disponiveis = candidatos.length > 0 ? candidatos : pool;
+      const sorteada = disponiveis[Math.floor(Math.random() * disponiveis.length)];
+
+      setAtual(sorteada);
+      historicoRef.current = [sorteada.id, ...historicoRef.current.slice(0, 7)];
+      setVisivel(true);
+
+      // Permanece visível por 5.5s para leitura agradável
+      timerRef.current = setTimeout(() => {
+        setVisivel(false);
+        // Aguarda 7 segundos recolhido antes da próxima aparição (5.5s + 7s = 12.5s de intervalo)
+        agendarCiclo(7000);
+      }, 5500);
+    }, atrasoEspera);
+  };
+
+  // Inicia o ciclo regular ao abrir a página
   useEffect(() => {
     if (dispensado) return;
 
-    let cancelado = false;
-    let timerId: any = null;
-
-    // Função cíclica com intervalo de 12.5 a 13 segundos entre aparições
-    // Visível por 5.5s (leitura calma e natural), recolhido por 7s (total de 12.5s)
-    const agendarCiclo = (atrasoEspera: number) => {
-      timerId = setTimeout(() => {
-        if (cancelado) return;
-
-        // Seleciona a próxima notificação evitando qualquer repetição recente
-        setIndex((prevIndex) => {
-          const proximo = sortearProximoIndex(prevIndex, historicoRef.current);
-          // Mantém um histórico das últimas 8 notificações para rotação diversificada
-          historicoRef.current = [proximo, ...historicoRef.current.slice(0, 7)];
-          return proximo;
-        });
-
-        // Revela o pop-up com transição suave
-        setVisivel(true);
-
-        // Permanece visível por 5.5s para leitura confortável
-        timerId = setTimeout(() => {
-          if (cancelado) return;
-
-          // Recolhe suavemente
-          setVisivel(false);
-
-          // Aguarda 7 segundos recolhido antes da próxima aparição
-          // (5.5s visível + 7.0s recolhido = 12.5 segundos de intervalo entre pop-ups)
-          agendarCiclo(7000);
-        }, 5500);
-      }, atrasoEspera);
-    };
-
-    // Primeira aparição suave após 4.5 segundos da abertura da página
     agendarCiclo(4500);
 
     return () => {
-      cancelado = true;
-      if (timerId) clearTimeout(timerId);
+      if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, [dispensado]);
 
-  if (dispensado) return null;
+  // Escuta novas compras reais confirmadas para subir o toast na hora!
+  useEffect(() => {
+    const unsub = onRealPurchase((novaOrder) => {
+      const novaNotificacao = orderParaNotificacao(novaOrder, "agora mesmo");
 
-  const current = NOTIFICACOES[index] || NOTIFICACOES[0];
+      // Injeta de imediato na fila de notificações para rotação futura
+      setNotificacoes((prev) => [novaNotificacao, ...prev.filter((n) => n.id !== novaNotificacao.id)]);
+
+      // Cancela qualquer timer em andamento
+      if (timerRef.current) clearTimeout(timerRef.current);
+
+      // Suba na hora com a compra real efetuada!
+      setAtual(novaNotificacao);
+      setDispensado(false);
+      setVisivel(true);
+      historicoRef.current = [novaNotificacao.id, ...historicoRef.current.slice(0, 7)];
+
+      // Permanece visível por 6 segundos para destaque da compra real
+      timerRef.current = setTimeout(() => {
+        setVisivel(false);
+        // Retoma ciclo normal após 7s recolhido
+        agendarCiclo(7000);
+      }, 6000);
+    });
+
+    return () => {
+      unsub();
+    };
+  }, []);
+
+  if (dispensado && !visivel) return null;
 
   return (
     <div
@@ -234,19 +342,21 @@ export function SocialProofToast() {
         <div className="min-w-0 flex-1 text-xs">
           <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
             <CheckCircle className="h-3 w-3 inline" />
-            <span>Compra recente • Maringá</span>
+            <span>
+              {atual.isReal ? "Compra real confirmada • Maringá" : "Compra recente • Maringá"}
+            </span>
           </div>
           <p className="mt-0.5 text-foreground leading-snug">
             <strong className="font-bold text-forest">
-              {current.nome}
+              {atual.nome}
             </strong>{" "}
-            da {current.local} pediu{" "}
+            {formatarOrigem(atual.local)} pediu{" "}
             <span className="font-semibold text-acai">
-              {current.item}
+              {atual.item}
             </span>
           </p>
           <span className="text-[10px] text-muted-foreground">
-            {current.tempo}
+            {atual.tempo}
           </span>
         </div>
 
@@ -255,6 +365,7 @@ export function SocialProofToast() {
           onClick={() => {
             setVisivel(false);
             setDispensado(true);
+            if (timerRef.current) clearTimeout(timerRef.current);
           }}
           aria-label="Fechar notificação"
           className="tap -mr-1 -mt-4 text-muted-foreground hover:text-foreground p-1 transition-colors"

@@ -93,6 +93,50 @@ export type Order = {
 const ORDERS_KEY = "cdn_pedidos_kds_v1";
 const ORDERS_EVENT = "cdn_pedidos_atualizados";
 const LAST_ORDER_KEY = "cdn_ultimo_pedido_id";
+export const REAL_PURCHASE_EVENT = "cdn_nova_compra_real";
+const NOTIFIED_PURCHASES_KEY = "cdn_compras_notificadas_v1";
+
+/**
+ * Dispara evento em tempo real para o popup de provas sociais ao confirmar uma compra real.
+ */
+export function dispatchRealOrderConfirmed(order: Order): void {
+  if (typeof window === "undefined" || !isOrderConfirmed(order)) return;
+
+  try {
+    const raw = sessionStorage.getItem(NOTIFIED_PURCHASES_KEY);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    if (list.includes(order.id)) {
+      return;
+    }
+    list.push(order.id);
+    sessionStorage.setItem(NOTIFIED_PURCHASES_KEY, JSON.stringify(list.slice(-50)));
+  } catch {}
+
+  window.dispatchEvent(
+    new CustomEvent(REAL_PURCHASE_EVENT, {
+      detail: order,
+    })
+  );
+}
+
+/**
+ * Escuta compras reais recém-confirmadas para disparar animações e popups.
+ */
+export function onRealPurchase(callback: (order: Order) => void): () => void {
+  if (typeof window === "undefined") return () => {};
+
+  const handleCustom = (e: Event) => {
+    const custom = e as CustomEvent<Order>;
+    if (custom.detail) {
+      callback(custom.detail);
+    }
+  };
+
+  window.addEventListener(REAL_PURCHASE_EVENT, handleCustom);
+  return () => {
+    window.removeEventListener(REAL_PURCHASE_EVENT, handleCustom);
+  };
+}
 
 /**
  * Valida se um pedido está confirmado para produção na cozinha e faturamento no caixa.
@@ -137,6 +181,7 @@ export function saveOrder(order: Order): void {
     // Registra no caixa somente se o pedido estiver confirmado (pago no Pix ou pagamento na entrega)
     if (isOrderConfirmed(order)) {
       registerOrderSale(order);
+      dispatchRealOrderConfirmed(order);
     } else {
       removeOrderSaleIfPending(order.id);
     }
@@ -245,6 +290,7 @@ export function updateOrderPaymentStatus(
 
     if (orderToRegister) {
       registerOrderSale(orderToRegister);
+      dispatchRealOrderConfirmed(orderToRegister);
     } else if (newPaymentStatus !== "pago") {
       removeOrderSaleIfPending(orderId);
     }
@@ -425,6 +471,7 @@ export function initOrdersCloudSync(): void {
 
             if (isOrderConfirmed(updatedOrder)) {
               registerOrderSale(updatedOrder);
+              dispatchRealOrderConfirmed(updatedOrder);
             } else {
               removeOrderSaleIfPending(updatedOrder.id);
             }
