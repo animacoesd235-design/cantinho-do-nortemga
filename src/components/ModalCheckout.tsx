@@ -117,7 +117,7 @@ export function ModalCheckout({
         setPixAprovado(true);
         dispararTrackPurchase(order.total);
         toast.success("Pagamento via Pix confirmado!", {
-          description: "Seu pedido foi aprovado pelo Mercado Pago e enviado para a produção da cozinha.",
+          description: "Seu pedido foi aprovado e enviado para a produção da cozinha.",
         });
         setTimeout(() => {
           concluirFluxoPedido(order);
@@ -231,12 +231,12 @@ export function ModalCheckout({
         // Salva pedido inicialmente com status pendente
         saveOrder(pedido);
 
-        toast.success("QR Code Pix gerado com sucesso pelo Mercado Pago!");
+        toast.success("QR Code Pix gerado com sucesso!");
 
         // Inicia polling automático a cada 3 segundos para confirmar aprovação
         iniciarPollingStatus(res.payment_id!, orderId, pedido);
       } else {
-        const msgErro = res.error || "Não foi possível gerar a cobrança Pix no Mercado Pago.";
+        const msgErro = res.error || "Não foi possível gerar a cobrança Pix no momento.";
         setErroPix(msgErro);
         toast.error(msgErro);
       }
@@ -273,7 +273,7 @@ export function ModalCheckout({
           dispararTrackPurchase(totalGeral);
 
           toast.success("Pagamento via Pix confirmado!", {
-            description: "Seu pedido foi aprovado pelo Mercado Pago e enviado para a cozinha.",
+            description: "Seu pedido foi aprovado e enviado para a cozinha.",
           });
 
           // Conclui pedido após breve animação de confirmação
@@ -337,7 +337,7 @@ export function ModalCheckout({
     const textoPagamento =
       metodoPagamento === "pix"
         ? pedidoFinalizado.pagamento.status === "pago"
-          ? "✅ Pix Aprovado no Mercado Pago"
+          ? "✅ Pix Confirmado (Online)"
           : "⏳ Pix (Aguardando confirmação bancária)"
         : metodoPagamento === "cartao_entrega"
         ? "💳 Cartão na Entrega (Levar maquininha)"
@@ -558,7 +558,7 @@ export function ModalCheckout({
                       Pix
                     </span>
                     <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
-                      Mercado Pago
+                      Qualquer Banco
                     </span>
                   </div>
                 </div>
@@ -646,10 +646,10 @@ export function ModalCheckout({
                   <div className="text-center py-2 space-y-3">
                     <div className="max-w-xs mx-auto space-y-1">
                       <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 block">
-                        Pagamento Instantâneo via Pix (Mercado Pago)
+                        Pagamento Instantâneo via Pix
                       </span>
                       <p className="text-[11px] text-muted-foreground">
-                        Clique abaixo para gerar o QR Code oficial e o código Copia e Cola diretamente no Mercado Pago.
+                        Clique abaixo para gerar o QR Code e o código Pix Copia e Cola para pagamento em qualquer banco.
                       </p>
                     </div>
 
@@ -662,12 +662,12 @@ export function ModalCheckout({
                       {gerandoPix ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin text-white" />
-                          <span>Gerando Pix com o Mercado Pago...</span>
+                          <span>Gerando código Pix...</span>
                         </>
                       ) : (
                         <>
                           <QrCode className="h-4 w-4" />
-                          <span>Gerar QR Code Pix Oficial</span>
+                          <span>Gerar QR Code Pix</span>
                         </>
                       )}
                     </button>
@@ -690,7 +690,7 @@ export function ModalCheckout({
                         {qrCodeBase64 ? (
                           <img
                             src={`data:image/png;base64,${qrCodeBase64}`}
-                            alt="QR Code Pix Mercado Pago"
+                            alt="QR Code Pix"
                             className="h-32 w-32 object-contain rounded-lg"
                           />
                         ) : (
@@ -713,10 +713,10 @@ export function ModalCheckout({
                       <div className="flex-1 min-w-0 text-center sm:text-left space-y-2">
                         <div>
                           <span className="text-xs font-bold text-emerald-800 dark:text-emerald-300 block">
-                            Pix Copia e Cola (Mercado Pago)
+                            Pix Copia e Cola
                           </span>
                           <p className="text-[11px] text-muted-foreground mt-0.5">
-                            Abra o aplicativo do seu banco, selecione a opção <strong>Pix Copia e Cola</strong> e conclua a transferência.
+                            Abra o aplicativo do seu banco, selecione a opção <strong>Pix Copia e Cola</strong> e conclua o pagamento.
                           </p>
                         </div>
 
@@ -768,7 +768,7 @@ export function ModalCheckout({
                     ) : (
                       <div className="p-3.5 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center gap-2 text-emerald-300 text-xs font-bold animate-in zoom-in-95">
                         <CheckCircle2 className="h-5 w-5 text-emerald-400" />
-                        <span>Pagamento confirmado com sucesso pelo Mercado Pago! Redirecionando...</span>
+                        <span>Pagamento confirmado com sucesso! Redirecionando...</span>
                       </div>
                     )}
                   </div>
@@ -849,7 +849,7 @@ export function ModalCheckout({
                     ? pixAprovado
                       ? "Concluir Pedido Aprovado ✅"
                       : !pixGerado
-                      ? "Pagar via Pix (Mercado Pago)"
+                      ? "Pagar via Pix"
                       : "Já Paguei (Verificar Pix) 🔄"
                     : "Finalizar Pedido via WhatsApp"}
                 </span>
