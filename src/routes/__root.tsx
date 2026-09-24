@@ -133,15 +133,6 @@ function RootShell({ children }: { children: ReactNode }) {
             `,
           }}
         />
-        <noscript>
-          <img
-            height="1"
-            width="1"
-            style={{ display: "none" }}
-            src="https://www.facebook.com/tr?id=1730334224937135&ev=PageView&noscript=1"
-            alt=""
-          />
-        </noscript>
         {/* End Meta Pixel Code */}
         <script
           dangerouslySetInnerHTML={{
