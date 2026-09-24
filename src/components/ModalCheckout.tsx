@@ -33,6 +33,7 @@ import {
   checkPixPaymentStatus,
   type CreatePixResponse,
 } from "@/lib/mercadopago-client";
+import { trackInitiateCheckout, trackPurchase } from "@/lib/meta-pixel";
 
 interface ModalCheckoutProps {
   cart: OrderItem[];
@@ -78,6 +79,19 @@ export function ModalCheckout({
   const [verificandoStatusManual, setVerificandoStatusManual] = useState(false);
   const [erroPix, setErroPix] = useState<string | null>(null);
 
+  // Disparo único do evento Purchase para o Meta Pixel
+  const purchaseTrackedRef = useRef(false);
+  const dispararTrackPurchase = (valor: number) => {
+    if (purchaseTrackedRef.current) return;
+    purchaseTrackedRef.current = true;
+    trackPurchase(valor);
+  };
+
+  // Dispara InitiateCheckout imediatamente ao abrir o modal de checkout
+  useEffect(() => {
+    trackInitiateCheckout();
+  }, []);
+
   // Polling ref
   const pollingRef = useRef<any>(null);
 
@@ -101,6 +115,7 @@ export function ModalCheckout({
           pollingRef.current = null;
         }
         setPixAprovado(true);
+        dispararTrackPurchase(order.total);
         toast.success("Pagamento via Pix confirmado!", {
           description: "Seu pedido foi aprovado pelo Mercado Pago e enviado para a produção da cozinha.",
         });
@@ -255,6 +270,7 @@ export function ModalCheckout({
               mercadoPagoId: paymentId,
             },
           });
+          dispararTrackPurchase(totalGeral);
 
           toast.success("Pagamento via Pix confirmado!", {
             description: "Seu pedido foi aprovado pelo Mercado Pago e enviado para a cozinha.",
@@ -288,6 +304,7 @@ export function ModalCheckout({
         if (pollingRef.current) clearInterval(pollingRef.current);
         setPixAprovado(true);
         updateOrderPaymentStatus(currentOrderId, "pago", mpPaymentId);
+        dispararTrackPurchase(totalGeral);
         toast.success("Pagamento confirmado com sucesso!");
 
         setTimeout(() => {
@@ -306,6 +323,9 @@ export function ModalCheckout({
   const concluirFluxoPedido = (pedidoFinalizado: Order) => {
     saveOrder(pedidoFinalizado);
     dispatchRealOrderConfirmed(pedidoFinalizado);
+    if (pedidoFinalizado.pagamento.status === "pago") {
+      dispararTrackPurchase(pedidoFinalizado.total);
+    }
 
     const linhasItens = cart.map((i) => {
       const extras = i.extras?.length

@@ -18,6 +18,7 @@ import { ModalCheckout } from "@/components/ModalCheckout";
 import { ModalRastreio } from "@/components/ModalRastreio";
 import { ModalSugestaoPreparo } from "@/components/ModalSugestaoPreparo";
 import { SocialProofToast } from "@/components/SocialProofToast";
+import { trackAddToCart, trackInitiateCheckout } from "@/lib/meta-pixel";
 import logo from "@/assets/logo-cantinho.png";
 import heroBg from "@/assets/hero-bg.jpg";
 import {
@@ -144,6 +145,7 @@ export function CardapioContent() {
       }
       return [...prev, { ...item, uid: crypto.randomUUID(), qtd: 1 }];
     });
+    trackAddToCart(item.nome, item.preco);
     toast.success("Adicionado ao pedido", { description: item.nome });
   };
 
@@ -299,7 +301,10 @@ export function CardapioContent() {
         setAberto={setCartAberto}
         mudarQtd={mudarQtd}
         limpar={() => setCart([])}
-        onAbrirCheckout={() => setCheckoutAberto(true)}
+        onAbrirCheckout={() => {
+          trackInitiateCheckout();
+          setCheckoutAberto(true);
+        }}
       />
 
       {/* Modal de Upselling Inteligente */}
