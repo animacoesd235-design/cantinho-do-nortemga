@@ -237,20 +237,27 @@ export function productToDbRow(p: CustomProduct): Record<string, any> {
   };
 }
 
-/**
- * Busca a lista de produtos na nuvem de forma assíncrona.
- * Se a nuvem estiver desativada ou houver falha de rede/timeout, retorna null de forma limpa.
- */
-export async function fetchCloudProducts(): Promise<CustomProduct[] | null> {
+export interface FetchCloudProductsOptions {
+  onlyActive?: boolean;
+  limit?: number;
+}
+
+export async function fetchCloudProducts(options?: FetchCloudProductsOptions): Promise<CustomProduct[] | null> {
   const supabase = getSupabaseClient();
   if (!supabase) return null;
 
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from("products")
-      .select("*")
+      .select("id, nome, descricao, preco, preco_original, economia, imagem, destaque, categoria, ativo, ordem")
       .order("ordem", { ascending: true })
-      .abortSignal(AbortSignal.timeout(5000));
+      .limit(options?.limit ?? 200);
+
+    if (options?.onlyActive) {
+      query = query.eq("ativo", true);
+    }
+
+    const { data, error } = await query.abortSignal(AbortSignal.timeout(5000));
 
     if (error) {
       console.warn("[CloudSync] Consulta de produtos na nuvem falhou, mantendo dados locais:", error.message);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, lazy, Suspense } from "react";
 import { toast } from "sonner";
 import {
   Bike,
@@ -13,11 +13,23 @@ import {
   X,
 } from "lucide-react";
 
-import { ModalUpsell } from "@/components/ModalUpsell";
-import { ModalCheckout } from "@/components/ModalCheckout";
-import { ModalRastreio } from "@/components/ModalRastreio";
-import { ModalSugestaoPreparo } from "@/components/ModalSugestaoPreparo";
-import { SocialProofToast } from "@/components/SocialProofToast";
+// Code splitting dos modais pesados para reduzir o bundle inicial (FCP/LCP)
+const ModalUpsell = lazy(() =>
+  import("@/components/ModalUpsell").then((m) => ({ default: m.ModalUpsell }))
+);
+const ModalCheckout = lazy(() =>
+  import("@/components/ModalCheckout").then((m) => ({ default: m.ModalCheckout }))
+);
+const ModalRastreio = lazy(() =>
+  import("@/components/ModalRastreio").then((m) => ({ default: m.ModalRastreio }))
+);
+const ModalSugestaoPreparo = lazy(() =>
+  import("@/components/ModalSugestaoPreparo").then((m) => ({ default: m.ModalSugestaoPreparo }))
+);
+const SocialProofToast = lazy(() =>
+  import("@/components/SocialProofToast").then((m) => ({ default: m.SocialProofToast }))
+);
+
 import { trackAddToCart, trackInitiateCheckout } from "@/lib/meta-pixel";
 import logo from "@/assets/logo-cantinho.png";
 import heroBg from "@/assets/hero-bg.jpg";
@@ -94,12 +106,10 @@ export function CardapioContent() {
 
     window.addEventListener("focus", sincronizarTudo);
     window.addEventListener("visibilitychange", sincronizarTudo);
-    const intervalTimer = setInterval(sincronizarTudo, 2000);
 
     return () => {
       cleanupProds();
       cleanupCats();
-      clearInterval(intervalTimer);
       window.removeEventListener("focus", sincronizarTudo);
       window.removeEventListener("visibilitychange", sincronizarTudo);
     };
@@ -309,40 +319,50 @@ export function CardapioContent() {
 
       {/* Modal de Upselling Inteligente */}
       {itemParaUpsell && (
-        <ModalUpsell
-          produto={itemParaUpsell.produto}
-          isCombo={itemParaUpsell.isCombo}
-          onConfirm={handleConfirmUpsell}
-          onSkip={handleSkipUpsell}
-          onClose={() => setItemParaUpsell(null)}
-        />
+        <Suspense fallback={null}>
+          <ModalUpsell
+            produto={itemParaUpsell.produto}
+            isCombo={itemParaUpsell.isCombo}
+            onConfirm={handleConfirmUpsell}
+            onSkip={handleSkipUpsell}
+            onClose={() => setItemParaUpsell(null)}
+          />
+        </Suspense>
       )}
 
       {/* Modal de Checkout Exclusivo 100% Delivery & Pix */}
       {checkoutAberto && (
-        <ModalCheckout
-          cart={cart}
-          total={total}
-          onClose={() => setCheckoutAberto(false)}
-          onOrderCompleted={handleOrderCompleted}
-        />
+        <Suspense fallback={null}>
+          <ModalCheckout
+            cart={cart}
+            total={total}
+            onClose={() => setCheckoutAberto(false)}
+            onOrderCompleted={handleOrderCompleted}
+          />
+        </Suspense>
       )}
 
       {/* Modal de Rastreamento em Tempo Real */}
       {rastreioOrderId && (
-        <ModalRastreio
-          orderId={rastreioOrderId}
-          onClose={() => setRastreioOrderId(null)}
-        />
+        <Suspense fallback={null}>
+          <ModalRastreio
+            orderId={rastreioOrderId}
+            onClose={() => setRastreioOrderId(null)}
+          />
+        </Suspense>
       )}
 
       {/* Modal de Sugestão de Preparo (Monte em Casa) */}
       {preparoAberto && (
-        <ModalSugestaoPreparo onClose={() => setPreparoAberto(false)} />
+        <Suspense fallback={null}>
+          <ModalSugestaoPreparo onClose={() => setPreparoAberto(false)} />
+        </Suspense>
       )}
 
       {/* Prova Social em Tempo Real (Toasts de Vendas) */}
-      <SocialProofToast />
+      <Suspense fallback={null}>
+        <SocialProofToast />
+      </Suspense>
     </div>
   );
 }
@@ -441,6 +461,8 @@ function HeroSection() {
           alt="Açaí artesanal e ambiente amazônico sofisticado"
           className="h-full w-full object-cover object-center scale-105 transition-transform duration-1000"
           loading="eager"
+          decoding="async"
+          fetchPriority="high"
         />
         {/* Filtro Escuro e Overlay Elegante em Camadas */}
         <div className="hero-overlay absolute inset-0 backdrop-blur-[1px]" />
@@ -555,10 +577,12 @@ export function ProductCard({
               <img
                 src={imagemSrc}
                 alt={item.nome}
-                width={1024}
-                height={768}
+                width={400}
+                height={300}
                 loading={priority ? "eager" : "lazy"}
                 decoding="async"
+                fetchPriority={priority ? "high" : "low"}
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 400px"
                 className="h-full w-full object-contain p-2 transition-transform duration-500 ease-out group-hover:scale-105"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).style.opacity = "0.7";

@@ -1,9 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CardapioContent } from "@/components/CardapioContent";
+import heroBg from "@/assets/hero-bg.jpg";
 
 export const Route = createFileRoute("/")({
   ssr: false,
   head: () => ({
+    links: [
+      {
+        rel: "preload",
+        as: "image",
+        href: heroBg,
+        fetchpriority: "high",
+      },
+    ],
     meta: [
       { title: "Cantinho do Norte — Kits e Garrafas de Açaí em Maringá (100% Delivery)" },
       {

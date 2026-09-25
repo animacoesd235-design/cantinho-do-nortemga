@@ -94,7 +94,24 @@ export default {
     try {
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      const res = await normalizeCatastrophicSsrResponse(response);
+      const contentType = res.headers.get("content-type") ?? "";
+      if (contentType.includes("text/html") && res.status === 200) {
+        const headers = new Headers(res.headers);
+        const currentCc = headers.get("cache-control");
+        if (!currentCc || currentCc.includes("no-store") || currentCc.includes("no-cache")) {
+          headers.set(
+            "cache-control",
+            "public, max-age=0, must-revalidate, s-maxage=60, stale-while-revalidate=86400"
+          );
+        }
+        return new Response(res.body, {
+          status: res.status,
+          statusText: res.statusText,
+          headers,
+        });
+      }
+      return res;
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {
